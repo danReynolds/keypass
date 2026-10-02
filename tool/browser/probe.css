@@ -1,0 +1,11 @@
+html { color-scheme: light dark; font: 17px/1.6 system-ui, sans-serif; }
+body { margin: 0; padding: 6vh 24px; background: light-dark(#f3f5f8, #121820); color: light-dark(#1b2936, #e9eef5); }
+main { max-width: 640px; margin: auto; padding: 32px; background: light-dark(white, #1d2733); border-radius: 18px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.12em; color: light-dark(#37618a, #a8c6e8); }
+h1 { font-size: 30px; line-height: 1.2; }
+#code { font-family: ui-monospace, monospace; font-size: 21px; overflow-wrap: anywhere; }
+button { padding: 12px 20px; font: inherit; border: 1px solid transparent; border-radius: 8px; cursor: pointer; background: #2765a3; color: white; margin: 0 8px 8px 0; }
+button:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible { outline: 3px solid #74baff; outline-offset: 3px; }
+.secondary { background: transparent; color: inherit; border-color: #8090a0; }
+.note { font-size: 14px; opacity: 0.8; margin-top: 28px; }

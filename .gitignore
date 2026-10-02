@@ -1,0 +1,14 @@
+.dart_tool/
+.DS_Store
+build/
+coverage/
+.swiftpm/
+.build/
+
+.gradle/
+.cxx/
+local.properties
+
+.firebase/
+
+firebase-debug*.log

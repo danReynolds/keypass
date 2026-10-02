@@ -1,0 +1,23 @@
+name: keypass_provider_demo
+description: Disposable native-provider qualification app for Keypass.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  keypass:
+    path: ../..
+  cryptography: 2.9.0
+  path_provider: 2.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
