@@ -47,7 +47,9 @@ accepted design. The implementation incorporated these concrete findings:
    check()/busy behavior, consumer KDF and authenticated atomic persistence
    responsibilities explicit. No undocumented consumer helper APIs are implied.
 
-The final public-code review found no blocking DX or architecture issue. This is
+The final public-code review and completion audit found no blocking DX or
+architecture issue for Keybay consuming this SDK with the documented manual host
+setup. This is
 an internal engineering review, not an independent cryptographic audit.
 
 ## Local evidence
@@ -55,7 +57,7 @@ an internal engineering review, not an independent cryptographic audit.
 | Check | Result |
 | --- | --- |
 | Dart formatting and analyze --fatal-infos | Clean |
-| Full Dart suite | 157 passing tests |
+| Full Dart suite | 157 passing tests, including a full Dart 3.13.5 rerun |
 | Node browser-probe suite | 25 passing tests |
 | Focused demo/AAD/worker/terminal suite | 23 passing tests, included in full suite |
 | Flutter test-host analysis | Clean |

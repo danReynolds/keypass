@@ -222,8 +222,9 @@ No browser, Keypass endpoint or physical-key secret stored as a software fallbac
   avoid PINs/secrets in argv, environment variables, logs or persistent state.
 - [x] Version the binding format deliberately and preserve existing development
   credentials, or provide explicit migration errors. Do not silently re-enroll.
-- [ ] Document provider versus hardware setup and truthful capability errors.
-  Do not promise every key, phone connector, NFC reader or OS version.
+- [x] Document provider versus hardware setup and truthful capability errors
+  in the SDK guide and platform setup pages. No blanket promise covers every
+  key, phone connector, NFC reader or OS version.
 
 ## 4. Keybay integration
 

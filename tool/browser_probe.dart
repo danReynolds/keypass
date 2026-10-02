@@ -84,7 +84,9 @@ Future<void> main(List<String> args) async {
           '\nCompare every group with the browser:\n$code\n'
           'If all groups match, type yes here and approve in the browser.',
         );
-        return await lines!.moveNext() && lines.current.trim() == 'yes';
+        final inputLines = lines!;
+        return await inputLines.moveNext() &&
+            inputLines.current.trim() == 'yes';
       },
     );
     interrupt = ProcessSignal.sigint.watch().listen(

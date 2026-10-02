@@ -1,6 +1,9 @@
 name: Check
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 permissions:
   contents: read
@@ -52,6 +55,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          # The action defaults to the removed legacy "tools" SDK package.
+          packages: platform-tools
       - run: sdkmanager "platforms;android-36" "ndk;28.2.13676358" "cmake;3.22.1"
       - run: native/android/gradlew -p native/android testDebugUnitTest assembleRelease :smoke:assembleDebug
       - run: native/android/gradlew -p native/hardware_android assembleRelease testDebugUnitTest

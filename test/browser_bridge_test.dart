@@ -50,7 +50,7 @@ void main() {
     'badEvidence',
   ]) {
     test(
-      'Node WebCrypto -> Dart paired HTTP round trip: $mode',
+      'Node WebCrypto -> Dart paired browser bridge HTTP round trip: $mode',
       () async {
         String? code;
         final withEvidence = mode == 'evidence' || mode == 'badEvidence';
