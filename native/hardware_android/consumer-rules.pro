@@ -1,0 +1,2 @@
+-keep class dev.keypass.hardware.HardwareNative { *; }
+-keep class dev.keypass.hardware.HardwareInitializer { *; }

@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.keypass.providerdemo",
+      "sha256_cert_fingerprints": [
+        "55:96:7E:E5:74:23:B1:A8:16:4D:69:6A:94:ED:83:25:04:10:87:8D:62:73:B3:28:B3:BF:11:E2:82:7D:A8:6B"
+      ]
+    }
+  }
+]

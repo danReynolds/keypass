@@ -1,0 +1,2 @@
+-keep class dev.keypass.KeypassNative { *; }
+-keep class dev.keypass.KeypassInitializer { *; }

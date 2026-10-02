@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.22)
+project(keypass LANGUAGES CXX)
+if(NOT WIN32)
+  message(FATAL_ERROR "Use a Windows SDK or a Windows cross compiler")
+endif()
+set(DEPS "${CMAKE_CURRENT_BINARY_DIR}/deps")
+file(MAKE_DIRECTORY "${DEPS}")
+file(DOWNLOAD "https://raw.githubusercontent.com/microsoft/webauthn/ef82c157125a0490e05f6ea82a7adb1b8e1bad08/webauthn.h" "${DEPS}/webauthn.h"
+  EXPECTED_HASH SHA256=da82d5be6b90a2706185ae44ad93649bcefc0f89c97ab930ec4e6f0abb7b2283 TLS_VERIFY ON)
+file(DOWNLOAD "https://raw.githubusercontent.com/nlohmann/json/v3.12.0/single_include/nlohmann/json.hpp" "${DEPS}/json.hpp"
+  EXPECTED_HASH SHA256=aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63 TLS_VERIFY ON)
+add_library(keypass SHARED keypass.cpp)
+target_include_directories(keypass PRIVATE "${DEPS}")
+target_compile_features(keypass PRIVATE cxx_std_17)
+target_compile_definitions(keypass PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(keypass PRIVATE crypt32 user32)
+set_target_properties(keypass PROPERTIES PREFIX "")

@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(keypass_hardware LANGUAGES CXX)
+add_library(keypass_hardware SHARED bridge.cpp)
+target_compile_features(keypass_hardware PRIVATE cxx_std_17)
+target_compile_options(keypass_hardware PRIVATE -Wall -Wextra -Werror)

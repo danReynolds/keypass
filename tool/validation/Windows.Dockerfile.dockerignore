@@ -1,0 +1,8 @@
+**
+!native/
+!native/windows/
+!native/windows/keypass.cpp
+!build/
+!build/native/
+!build/native/windows-deps/
+!build/native/windows-deps/*
