@@ -118,7 +118,9 @@ final class _Keypass implements Keypass {
 
   @override
   Future<PasskeyReadiness> check() => _run(null, (backend, signal) async {
-    final available = await _native(backend.availability);
+    final available = await _native(
+      () => backend.availability(cancellation: signal),
+    );
     return PasskeyReadiness._(available.reason);
   });
 
@@ -259,7 +261,9 @@ final class _Keypass implements Keypass {
 
 Future<void> _ready(PasskeyBackend backend, PasskeyCancellation signal) async {
   _checkCancellation(signal);
-  final available = await _native(backend.availability);
+  final available = await _native(
+    () => backend.availability(cancellation: signal),
+  );
   _checkCancellation(signal);
   if (!available.canAttempt) throw PasskeyException(available.reason!);
 }

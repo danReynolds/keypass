@@ -31,7 +31,9 @@ final class ProgressBackend implements PasskeyBackend {
   }
 
   @override
-  Future<PasskeyAvailability> availability() => inner.availability();
+  Future<PasskeyAvailability> availability({
+    PasskeyCancellation? cancellation,
+  }) => inner.availability(cancellation: cancellation);
 
   @override
   Future<PasskeyBinding> register(

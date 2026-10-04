@@ -23,7 +23,9 @@ final class RecordingBackend implements PasskeyBackend {
   onEvaluate;
 
   @override
-  Future<PasskeyAvailability> availability() async {
+  Future<PasskeyAvailability> availability({
+    PasskeyCancellation? cancellation,
+  }) async {
     availabilityCalls++;
     return onAvailability == null ? readiness : await onAvailability!();
   }

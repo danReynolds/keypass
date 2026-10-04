@@ -7,8 +7,10 @@ import 'models.dart';
 /// returning a binding or secret. Implementations must follow the backend
 /// contract, including challenge, RP/origin, credential, signature and UV checks.
 abstract interface class PasskeyBackend {
-  /// Must not display UI or enumerate a user's credentials.
-  Future<PasskeyAvailability> availability();
+  /// Must not display UI or enumerate a user's credentials. Forward the
+  /// operation's cancellation signal to native readiness/discovery and await
+  /// its cleanup before returning.
+  Future<PasskeyAvailability> availability({PasskeyCancellation? cancellation});
 
   /// Create a discoverable credential requiring UV; validate registration and
   /// PRF support. Each userId is a fresh local opaque handle, not an account ID.
@@ -83,10 +85,11 @@ final class UnavailablePasskeyBackend implements PasskeyBackend {
   const UnavailablePasskeyBackend();
 
   @override
-  Future<PasskeyAvailability> availability() async =>
-      const PasskeyAvailability.unavailable(
-        PasskeyErrorCode.backendUnavailable,
-      );
+  Future<PasskeyAvailability> availability({
+    PasskeyCancellation? cancellation,
+  }) async => const PasskeyAvailability.unavailable(
+    PasskeyErrorCode.backendUnavailable,
+  );
 
   @override
   Future<PasskeyBinding> register(
