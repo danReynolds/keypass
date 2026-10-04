@@ -77,9 +77,11 @@ final class HardwarePasskeyBackend implements PasskeyBackend {
   }
 
   @override
-  Future<PasskeyAvailability> availability() async {
+  Future<PasskeyAvailability> availability({
+    PasskeyCancellation? cancellation,
+  }) async {
     try {
-      final devices = await _devices(PasskeyCancellation());
+      final devices = await _devices(cancellation ?? PasskeyCancellation());
       return devices.isEmpty
           ? const PasskeyAvailability.unavailable(
               PasskeyErrorCode.deviceUnavailable,

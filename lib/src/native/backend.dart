@@ -33,12 +33,14 @@ final class NativePasskeyBackend implements PasskeyBackend {
   bool _android = false;
 
   @override
-  Future<PasskeyAvailability> availability() async {
+  Future<PasskeyAvailability> availability({
+    PasskeyCancellation? cancellation,
+  }) async {
     try {
       final reply = await transport.exchange({
         'operation': 'availability',
         'domain': domain,
-      }, PasskeyCancellation());
+      }, cancellation ?? PasskeyCancellation());
       try {
         final origin = reply.metadata['origin'];
         final platform = reply.metadata['platform'];
