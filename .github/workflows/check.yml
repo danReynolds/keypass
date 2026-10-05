@@ -27,10 +27,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - if: runner.os != 'Windows'
+        run: bash tool/install_hardware_build_deps.sh
       - run: dart pub get --enforce-lockfile
-      - run: dart format --output=none --set-exit-if-changed lib test example tool demo/provider_app/lib/store.dart
+      - run: dart format --output=none --set-exit-if-changed lib test example tool hook demo/provider_app/lib/store.dart
       - run: dart analyze --fatal-infos
       - run: dart test
+      - if: runner.os != 'Windows'
+        run: python3 tool/test_build_hooks.py
       - run: node --test test/browser/ceremony.test.mjs test/browser/failure.test.mjs test/browser/gesture.test.mjs test/browser/deadline.test.mjs
       - run: dart run example/keypass_example.dart
       - if: runner.os == 'macOS'

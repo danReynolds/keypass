@@ -13,3 +13,5 @@ dev_dependencies:
 dependencies:
   pointycastle: 4.0.0
   ffi: ^2.2.0
+  hooks: 2.2.0
+  code_assets: 2.1.0

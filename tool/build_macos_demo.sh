@@ -22,7 +22,7 @@ Path('build/demo/entitlements.plist').write_bytes(plistlib.dumps(entitlements))
 if not os.environ.get('KEYPASS_DEMO_PROFILE'):
  (app/'Contents/embedded.provisionprofile').unlink(missing_ok=True)
 PY
-dart --suppress-analytics compile exe tool/demo/worker.dart -o "$kp_demo_app/Contents/Resources/keypass-demo-worker"
+dart --suppress-analytics compile exe -Dkeypass.hardware.manual_bundle=true tool/demo/worker.dart -o "$kp_demo_app/Contents/Resources/keypass-demo-worker"
 xcrun swiftc -swift-version 5 -target arm64-apple-macos15.0 native/apple/Keypass.swift native/apple/DemoHost/main.swift -o "$kp_demo_app/Contents/MacOS/KeypassDemo"
 if [ -n "${KEYPASS_DEMO_PROFILE:-}" ]; then
   cp "$KEYPASS_DEMO_PROFILE" "$kp_demo_app/Contents/embedded.provisionprofile"
