@@ -7,51 +7,57 @@ import 'package:test/test.dart';
 
 void main() {
   for (final hardware in [false, true]) {
-    test(
-      '${hardware ? 'hardware' : 'system'} readiness cancels and drains',
-      () async {
-        final transport = _PendingReadiness();
-        final backend = hardware
-            ? HardwarePasskeyBackend(transport, namespace: 'vault.example.com')
-            : NativePasskeyBackend(transport, domain: 'vault.example.com');
-        final client = keypassWithBackendFactory(
-          rpId: 'vault.example.com',
-          route: hardware ? PasskeyRoute.hardware : PasskeyRoute.system,
-          createBackend: () => backend,
-        );
-        final cancellation = PasskeyCancellation();
-        var settled = false;
-        final creating = client.create(
-          label: 'Test',
-          cancellation: cancellation,
-        );
-        final outcome = expectLater(
-          creating.whenComplete(() => settled = true),
-          throwsA(
-            isA<PasskeyException>().having(
-              (e) => e.code,
-              'code',
-              PasskeyErrorCode.cancelled,
+    for (final checking in [false, true]) {
+      test(
+        '${hardware ? 'hardware' : 'system'} ${checking ? 'check' : 'create'} readiness cancels and drains',
+        () async {
+          final transport = _PendingReadiness();
+          final backend = hardware
+              ? HardwarePasskeyBackend(
+                  transport,
+                  namespace: 'vault.example.com',
+                )
+              : NativePasskeyBackend(transport, domain: 'vault.example.com');
+          final client = keypassWithBackendFactory(
+            rpId: 'vault.example.com',
+            route: hardware ? PasskeyRoute.hardware : PasskeyRoute.system,
+            createBackend: () => backend,
+          );
+          final cancellation = PasskeyCancellation();
+          var settled = false;
+          final Future<Object?> operation = checking
+              ? client.check(cancellation: cancellation)
+              : client.create(label: 'Test', cancellation: cancellation);
+          final outcome = expectLater(
+            operation.whenComplete(() => settled = true),
+            throwsA(
+              isA<PasskeyException>().having(
+                (e) => e.code,
+                'code',
+                PasskeyErrorCode.cancelled,
+              ),
             ),
-          ),
-        );
-        await transport.entered.future;
-        cancellation.cancel();
-        await transport.cancelled.future.timeout(const Duration(seconds: 2));
-        expect(settled, isFalse);
-        expect(transport.disposed, isFalse);
-        transport.release.complete();
-        await outcome;
-        expect(transport.disposed, isTrue);
-        expect(transport.operations, [hardware ? 'discover' : 'availability']);
-        // The shared operation gate is released only after native cleanup.
-        final next = await keypassWithBackendFactory(
-          rpId: 'vault.example.com',
-          createBackend: () => const UnavailablePasskeyBackend(),
-        ).check();
-        expect(next.reason, isNot(PasskeyErrorCode.busy));
-      },
-    );
+          );
+          await transport.entered.future;
+          cancellation.cancel();
+          await transport.cancelled.future.timeout(const Duration(seconds: 2));
+          expect(settled, isFalse);
+          expect(transport.disposed, isFalse);
+          transport.release.complete();
+          await outcome;
+          expect(transport.disposed, isTrue);
+          expect(transport.operations, [
+            hardware ? 'discover' : 'availability',
+          ]);
+          // The shared operation gate is released only after native cleanup.
+          final next = await keypassWithBackendFactory(
+            rpId: 'vault.example.com',
+            createBackend: () => const UnavailablePasskeyBackend(),
+          ).check();
+          expect(next.reason, isNot(PasskeyErrorCode.busy));
+        },
+      );
+    }
   }
 }
 

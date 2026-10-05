@@ -54,7 +54,8 @@ abstract interface class Keypass {
 
   /// Optional, prompt-free readiness to attempt access; not proof of PRF support.
   /// Does not reserve access. An overlapping operation can fail with busy.
-  Future<PasskeyReadiness> check();
+  /// Cancellation waits for discovery to drain before releasing the backend.
+  Future<PasskeyReadiness> check({PasskeyCancellation? cancellation});
 
   /// Create a credential and verify two matching secret evaluations.
   /// Generates the user handle, challenges and original PRF input.
@@ -117,12 +118,13 @@ final class _Keypass implements Keypass {
   static bool _busy = false;
 
   @override
-  Future<PasskeyReadiness> check() => _run(null, (backend, signal) async {
-    final available = await _native(
-      () => backend.availability(cancellation: signal),
-    );
-    return PasskeyReadiness._(available.reason);
-  });
+  Future<PasskeyReadiness> check({PasskeyCancellation? cancellation}) =>
+      _run(cancellation, (backend, signal) async {
+        final available = await _native(
+          () => backend.availability(cancellation: signal),
+        );
+        return PasskeyReadiness._(available.reason);
+      });
 
   @override
   Future<PasskeyResult> create({

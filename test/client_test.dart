@@ -73,6 +73,17 @@ void main() {
     },
   );
 
+  test('pre-cancelled check does not create or touch a backend', () async {
+    final cancellation = PasskeyCancellation()..cancel();
+    await expectLater(
+      client.check(cancellation: cancellation),
+      fails(PasskeyErrorCode.cancelled),
+    );
+    expect(factories, 0);
+    expect(backend.availabilityCalls, 0);
+    expect(backend.disposed, 0);
+  });
+
   test('invalid creation labels fail before backend construction', () async {
     for (final label in ['', '   ', 'x' * 257]) {
       await expectLater(
