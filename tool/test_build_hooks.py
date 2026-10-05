@@ -65,6 +65,17 @@ dependencies:
         actual = run([dart, '--suppress-analytics', 'run', str(entry)])
         assert actual.rstrip().endswith('asset ABI and worker passed'), actual
     print('PASS: transitive hook and cached Dart runs')
+    # A dependency update changes packageRoot while the hook may retain its
+    # build directory. Prove it can configure against the new absolute source.
+    updated = root / 'updated keypass'
+    shutil.copytree(repo, updated, ignore=shutil.ignore_patterns(
+        '.git', '.dart_tool', 'build', '.build', 'Pods', '.gradle'))
+    manifest = bridge / 'pubspec.yaml'
+    manifest.write_text(manifest.read_text().replace(str(repo), str(updated)))
+    run([dart, '--suppress-analytics', 'pub', 'get', '--offline'])
+    actual = run([dart, '--suppress-analytics', 'run', str(entry)])
+    assert actual.rstrip().endswith('asset ABI and worker passed'), actual
+    print('PASS: dependency source relocation with retained build cache')
     run([dart, '--suppress-analytics', 'build', 'cli', '-o', str(root / 'built')])
     installed = root / 'relocated bundle'
     shutil.copytree(root / 'built/bundle', installed)

@@ -39,6 +39,13 @@ Future<void> buildHardware(BuildInput input, BuildOutputBuilder output) async {
   ]);
   await run('pkg-config', ['--atleast-version=1.16', 'libfido2']);
   await run('pkg-config', ['--atleast-version=3', 'libcrypto']);
+  // Dart can reuse this output directory when a Git dependency moves to a new
+  // checkout. CMake's cache embeds the old absolute source path. Fresh configure
+  // metadata avoids that mismatch without discarding downloads/build outputs.
+  final cache = File.fromUri(native.resolve('CMakeCache.txt'));
+  if (await cache.exists()) await cache.delete();
+  final metadata = Directory.fromUri(native.resolve('CMakeFiles/'));
+  if (await metadata.exists()) await metadata.delete(recursive: true);
   await run('cmake', [
     '-S',
     root.resolve('native/hardware/').toFilePath(),
