@@ -59,9 +59,9 @@ the [runtime independence constraint](implementation-plan.md#runtime-independenc
 Construct `Keypass.system(rpId: 'vault.example.com', displayName: 'Example App')`
 once and reuse it. The RP ID is explicit and stable; display name defaults to
 that identifier. Keypass does not read runtime pubspec files, environment
-variables or infer a domain from associated domains. Native libraries must
-currently be linked by the app packager; `dart pub get` alone does not build
-them. The same `check/create/unlock` contract applies to direct hardware through
+variables or infer a domain from associated domains. OS-provider libraries remain linked by the app packager. Desktop USB
+libraries are prepared by [Dart build hooks](build-hooks.md) during run/test/build;
+`dart pub get` alone does not build native libraries. The same `check/create/unlock` contract applies to direct hardware through
 `Keypass.hardware(rpId: 'vault.example.com')`. Results own temporary secrets and
 must be disposed; clients need no disposal. The same RP ID can be used by both
 routes; this does not make separately created credentials interchangeable.

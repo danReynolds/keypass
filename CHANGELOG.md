@@ -1,5 +1,9 @@
 ## 0.1.0-dev.2
 
+- Bundle desktop hardware adapters automatically with Dart native build hooks.
+- Keep hook dependencies compatible with Flutter 3.44.4 and Dart 3.11+.
+- Prepare the public package archive with native sources and license notices.
+
 - Replace the callback-scoped facade with Keypass.system and Keypass.hardware,
   one explicit RP ID, check/create/unlock, opaque PasskeyRecord and owned
   PasskeyResult with synchronous dispose.

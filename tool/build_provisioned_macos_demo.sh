@@ -13,7 +13,7 @@ if ! "$kp_demo_ruby" -e 'require "xcodeproj"; require "date"' >/dev/null 2>&1; t
 fi
 "$kp_demo_ruby" tool/generate_macos_demo_project.rb
 mkdir -p build/demo-xcode
-dart --suppress-analytics compile exe tool/demo/worker.dart -o build/demo-xcode/keypass-demo-worker
+dart --suppress-analytics compile exe -Dkeypass.hardware.manual_bundle=true tool/demo/worker.dart -o build/demo-xcode/keypass-demo-worker
 if ! xcodebuild -project build/demo-xcode/KeypassDemo.xcodeproj \
   -scheme KeypassDemo -configuration Debug -destination 'platform=macOS,arch=arm64' \
   -derivedDataPath build/demo-xcode/DerivedData \

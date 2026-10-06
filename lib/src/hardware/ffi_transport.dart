@@ -8,6 +8,7 @@ import '../cancellation.dart';
 import '../models.dart';
 import '../native/backend.dart';
 import 'interaction.dart';
+import 'bindings.dart' as assets;
 
 /// Dedicated hardware ABI: PINs and PRF output never enter JSON.
 final class HardwareFfiTransport implements NativeTransport {
@@ -54,37 +55,57 @@ final class HardwareFfiTransport implements NativeTransport {
     if (cancellation.isCancelled) {
       throw const PasskeyException(PasskeyErrorCode.cancelled);
     }
-    final lib = _lib;
-    final version = lib.lookupFunction<Uint32 Function(), int Function()>(
-      'keypass_hardware_abi_version',
-    );
-    if (version() != 1) {
+    // Explicitly packaged AOT consumers retain their reviewed sibling-library
+    // layout. Normal Dart/Flutter desktop execution uses the registered asset.
+    const manualBundle = bool.fromEnvironment('keypass.hardware.manual_bundle');
+    const configured = String.fromEnvironment('KEYPASS_HARDWARE_LIBRARY');
+    final useAssets =
+        _library == null &&
+        (Platform.isMacOS || Platform.isLinux) &&
+        !manualBundle &&
+        configured.isEmpty;
+    final lib = useAssets ? null : _lib;
+    final version = useAssets
+        ? assets.hardwareAbiVersion
+        : lib!.lookupFunction<Uint32 Function(), int Function()>(
+            'keypass_hardware_abi_version',
+          );
+    try {
+      if (version() != 1) {
+        throw const PasskeyException(PasskeyErrorCode.backendUnavailable);
+      }
+    } on ArgumentError {
       throw const PasskeyException(PasskeyErrorCode.backendUnavailable);
     }
-    final start = lib
-        .lookupFunction<
-          Uint64 Function(Pointer<Uint8>, Uint32),
-          int Function(Pointer<Uint8>, int)
-        >('keypass_hardware_start');
-    final poll = lib
-        .lookupFunction<
-          Pointer<Uint8> Function(Uint64, Pointer<Uint32>),
-          Pointer<Uint8> Function(int, Pointer<Uint32>)
-        >('keypass_hardware_poll');
-    final cancel = lib
-        .lookupFunction<Void Function(Uint64), void Function(int)>(
-          'keypass_hardware_cancel',
-        );
-    final submitPin = lib
-        .lookupFunction<
-          Uint32 Function(Uint64, Pointer<Uint8>, Uint32),
-          int Function(int, Pointer<Uint8>, int)
-        >('keypass_hardware_pin');
-    final release = lib
-        .lookupFunction<
-          Void Function(Pointer<Uint8>, Uint32),
-          void Function(Pointer<Uint8>, int)
-        >('keypass_hardware_free');
+    final start = useAssets
+        ? assets.hardwareStart
+        : lib!.lookupFunction<
+            Uint64 Function(Pointer<Uint8>, Uint32),
+            int Function(Pointer<Uint8>, int)
+          >('keypass_hardware_start');
+    final poll = useAssets
+        ? assets.hardwarePoll
+        : lib!.lookupFunction<
+            Pointer<Uint8> Function(Uint64, Pointer<Uint32>),
+            Pointer<Uint8> Function(int, Pointer<Uint32>)
+          >('keypass_hardware_poll');
+    final cancel = useAssets
+        ? assets.hardwareCancel
+        : lib!.lookupFunction<Void Function(Uint64), void Function(int)>(
+            'keypass_hardware_cancel',
+          );
+    final submitPin = useAssets
+        ? assets.hardwarePin
+        : lib!.lookupFunction<
+            Uint32 Function(Uint64, Pointer<Uint8>, Uint32),
+            int Function(int, Pointer<Uint8>, int)
+          >('keypass_hardware_pin');
+    final release = useAssets
+        ? assets.hardwareFree
+        : lib!.lookupFunction<
+            Void Function(Pointer<Uint8>, Uint32),
+            void Function(Pointer<Uint8>, int)
+          >('keypass_hardware_free');
     final encoded = utf8.encode(jsonEncode(request));
     if (encoded.isEmpty || encoded.length > 65536) {
       throw const PasskeyException(PasskeyErrorCode.invalidRequest);

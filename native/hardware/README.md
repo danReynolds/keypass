@@ -42,7 +42,16 @@ build/hardware/keypass-hardware-demo unlock build/hardware/demo/marker.json
 
 The demo asks for the key's existing PIN with terminal echo disabled. Enrollment needs registration and two fresh secret evaluations, so expect multiple touches. The demo retains a PIN only for that explicit operation and clears it afterward; the SDK does not cache PINs. The marker contains encrypted disposable test data and public binding metadata. Its companion `.receipt.json` contains only operation status, process ID, touch count, and error code.
 
-Place `libkeypass_hardware.dylib` / `libkeypass_hardware.so` beside the compiled executable, or link its exported symbols into the process. For development under `dart run`, use `--define=KEYPASS_HARDWARE_LIBRARY=/absolute/path/to/library`. Native dependency packaging and automatic Dart build hooks remain a separate milestone; this currently requires installing or bundling libfido2 and its dependencies.
+For normal desktop Dart consumers, [build hooks](../../doc/build-hooks.md)
+compile and bundle the adapter and its dependencies automatically during
+`dart run`, `dart test`, and `dart build cli`. No library path is needed.
+
+Custom native packagers can explicitly compile with
+`-Dkeypass.hardware.manual_bundle=true` and place `libkeypass_hardware.dylib` /
+`libkeypass_hardware.so` beside their runtime, with its dependency closure.
+`KEYPASS_HARDWARE_LIBRARY` remains an explicit development override. There is
+no fallback from a failing registered code asset to another library.
+
 
 On Linux the application needs permission to access the USB HID device, usually through distribution-provided FIDO udev rules. Do not run the application as root to bypass missing permissions.
 

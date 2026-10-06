@@ -148,3 +148,6 @@ docker run --rm --network none keypass-validation
 The build runs analysis, tests and AOT compilation. The final command only checks
 CLI startup/help; it does not exercise a Linux desktop passkey provider. Docker
 context exclusions keep local bindings and build/cache directories out of the image.
+
+Desktop hardware consumers use [Dart build hooks](doc/build-hooks.md) for automatic
+native compilation and loading. The public SDK API is unchanged.
