@@ -40,6 +40,23 @@ jobs:
       - if: runner.os == 'macOS'
         run: xcrun swiftc -typecheck native/apple/PlatformPrfProbe.swift
 
+  flutter-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the consumer Flutter SDK
+        run: |
+          flutter_root="$RUNNER_TEMP/flutter"
+          git init "$flutter_root"
+          git -C "$flutter_root" remote add origin https://github.com/flutter/flutter.git
+          git -C "$flutter_root" fetch --depth=1 origin refs/tags/3.44.4:refs/tags/3.44.4
+          git -C "$flutter_root" checkout --detach refs/tags/3.44.4
+          test "$(git -C "$flutter_root" rev-parse HEAD)" = ad70ec4617166f1c38e5d2bfd388af71fda14f06
+          echo "$flutter_root/bin" >> "$GITHUB_PATH"
+      - name: Resolve the consumer app without overrides
+        run: flutter pub get --enforce-lockfile
+        working-directory: demo/provider_app
+
   apple-native:
     runs-on: macos-latest
     steps:
