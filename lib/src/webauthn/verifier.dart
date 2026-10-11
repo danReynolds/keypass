@@ -155,8 +155,7 @@ final class WebAuthnVerifier {
   });
 
   /// [previousState] must be the state saved with the enrolled credential.
-  /// null is reserved for the legacy standalone probe, which did not store it.
-  /// New adapters must retain BE and counter state and pass it on every call.
+  /// Every adapter retains backup eligibility and counter state across calls.
   AuthenticatorState assertion({
     required Uint8List challenge,
     required Uint8List credentialId,
@@ -167,7 +166,7 @@ final class WebAuthnVerifier {
     required Uint8List clientDataJSON,
     required Uint8List authenticatorData,
     required Uint8List signature,
-    required AuthenticatorState? previousState,
+    required AuthenticatorState previousState,
   }) => _guard(() {
     _client(clientDataJSON, challenge, 'webauthn.get');
     return _assertionData(
@@ -192,7 +191,7 @@ final class WebAuthnVerifier {
     required Uint8List publicKeyCose,
     required Uint8List authenticatorData,
     required Uint8List signature,
-    required AuthenticatorState? previousState,
+    required AuthenticatorState previousState,
   }) {
     _length(credentialId, 1, 1024);
     _length(expectedCredentialId, 1, 1024);
@@ -202,15 +201,13 @@ final class WebAuthnVerifier {
       _bad();
     }
     final auth = _auth(authenticatorData, registration: false);
-    if (previousState != null) {
-      if (auth.state.backupEligible != previousState.backupEligible) _bad();
-      // Explicit conservative counter policy. Both zero is valid for synced
-      // passkeys. A nonzero counter must increase; never guess that a rollback
-      // is safe. Applications must commit returned state with their metadata.
-      if ((auth.state.signCount != 0 || previousState.signCount != 0) &&
-          auth.state.signCount <= previousState.signCount) {
-        _bad();
-      }
+    if (auth.state.backupEligible != previousState.backupEligible) _bad();
+    // Explicit conservative counter policy. Both zero is valid for synced
+    // passkeys. A nonzero counter must increase; never guess that a rollback
+    // is safe. Applications must commit returned state with their metadata.
+    if ((auth.state.signCount != 0 || previousState.signCount != 0) &&
+        auth.state.signCount <= previousState.signCount) {
+      _bad();
     }
     final signer = ECDSASigner(SHA256Digest())
       ..init(false, PublicKeyParameter<ECPublicKey>(_key(publicKeyCose)));
@@ -332,70 +329,6 @@ ECPublicKey _key(Uint8List cose) {
   // P-256 has cofactor 1: every non-infinity point on the curve is in the group.
   return ECPublicKey(curve.createPoint(x, y), _curve);
 }
-
-/// Exact P-256 SPKI conversion for legacy probe metadata, not a general ASN.1
-/// parser. The SDK binding itself uses COSE and never requires SPKI.
-Uint8List coseFromP256Spki(Uint8List spki) => _guard(() {
-  const header = [
-    0x30,
-    0x59,
-    0x30,
-    0x13,
-    0x06,
-    0x07,
-    0x2a,
-    0x86,
-    0x48,
-    0xce,
-    0x3d,
-    0x02,
-    0x01,
-    0x06,
-    0x08,
-    0x2a,
-    0x86,
-    0x48,
-    0xce,
-    0x3d,
-    0x03,
-    0x01,
-    0x07,
-    0x03,
-    0x42,
-    0x00,
-    0x04,
-  ];
-  if (spki.length != 91 ||
-      !_equal(Uint8List.sublistView(spki, 0, 27), header)) {
-    _bad();
-  }
-  final cose = Uint8List.fromList([
-    0xa5,
-    1,
-    2,
-    3,
-    0x26,
-    0x20,
-    1,
-    0x21,
-    0x58,
-    32,
-    ...spki.sublist(27, 59),
-    0x22,
-    0x58,
-    32,
-    ...spki.sublist(59),
-  ]);
-  _key(cose);
-  return cose;
-});
-
-bool sameP256Key(Uint8List first, Uint8List second) => _guard(() {
-  return _equal(
-    _key(first).Q!.getEncoded(false),
-    _key(second).Q!.getEncoded(false),
-  );
-});
 
 ECSignature _signature(Uint8List bytes) {
   _length(bytes, 8, 72);

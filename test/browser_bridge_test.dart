@@ -34,28 +34,20 @@ void main() {
     },
   );
   Map<String, Object?> request() => {
-    'version': 1,
+    'version': 2,
     'domain': 'vault.example.com',
     'userId': encodeBytes(randomBytes(32)),
     'input': encodeBytes(randomBytes(32)),
     'registrationChallenge': encodeBytes(randomBytes(32)),
     'challenges': [encodeBytes(randomBytes(32)), encodeBytes(randomBytes(32))],
   };
-  for (final mode in [
-    'success',
-    'reject',
-    'tamper',
-    'cancel',
-    'evidence',
-    'badEvidence',
-  ]) {
+  for (final mode in ['success', 'reject', 'tamper', 'cancel', 'badEvidence']) {
     test(
       'Node WebCrypto -> Dart paired browser bridge HTTP round trip: $mode',
       () async {
         String? code;
-        final withEvidence = mode == 'evidence' || mode == 'badEvidence';
+        final withEvidence = mode == 'success' || mode == 'badEvidence';
         final operation = request();
-        if (withEvidence) operation['evidenceVersion'] = 1;
         final bridge = await ProbeBridge.start(
           helper: Uri.parse('https://vault.example.com/probe.html'),
           domain: 'vault.example.com',
@@ -96,7 +88,7 @@ void main() {
             request: operation,
             origin: bridge.helper.origin,
             metadata: metadata,
-          );
+          ).toJson();
           try {
             if (mode == 'badEvidence') {
               expect(verify, throwsA(isA<Exception>()));
@@ -111,13 +103,6 @@ void main() {
           } finally {
             result.fillRange(0, result.length, 0);
           }
-        } else if (mode == 'success') {
-          expect(result.sublist(1, 33), List.filled(32, 42));
-          expect(
-            (jsonDecode(utf8.decode(result.sublist(33))) as Map)['domain'],
-            bridge.domain,
-          );
-          result.fillRange(0, result.length, 0);
         }
       },
       timeout: const Timeout(Duration(seconds: 20)),

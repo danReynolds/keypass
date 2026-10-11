@@ -51,7 +51,9 @@ directory (`bin` and `lib`). `dart compile` does not orchestrate native assets.
 Custom AOT/embedded packagers may explicitly set
 `-Dkeypass.hardware.manual_bundle=true` and ship the reviewed sibling-library
 layout beside the runtime, or link the platform adapter into the host process.
-That compatibility path does not run hooks or prepare any libraries itself.
+This explicit host integration does not run hooks or prepare any libraries.
+It remains necessary for embedded AOT hosts that own native linking; it never
+activates after an asset failure. Tests inject their library directly.
 Production signing, notarization and installed-upgrade qualification remain
 responsibilities of the application packager.
 

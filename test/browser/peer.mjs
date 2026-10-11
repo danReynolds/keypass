@@ -36,7 +36,7 @@ if (args.cancel) {
   assert(request.expiresAt > Date.now() && request.expiresAt <= Date.now() + 600000);
   await assert.rejects(channel.open(wire));
   const credentials = await fakeCredentials(args.origin);
-  let result = await runProbe(request, args.origin, credentials, (_, action) => action());
+  let result = await runProbe(request, credentials, (_, action) => action());
   assert(credentials.outputs.every(b => b.every(v => v === 0)));
   if (args.corruptEvidence) {
     const metadata = JSON.parse(new TextDecoder().decode(result.subarray(33)));

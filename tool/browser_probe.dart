@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:keypass/src/models.dart';
 import 'browser/bridge.dart';
 import 'browser/channel.dart';
 import 'browser/restart_check.dart';
@@ -22,6 +23,8 @@ Future<void> main(List<String> args) async {
   StreamIterator<String>? lines;
   StreamSubscription<ProcessSignal>? interrupt;
   Uint8List? result;
+  RandomAccessFile? lock;
+  Directory? stage;
   try {
     final options = <String, String>{};
     var allowLoopback = false;
@@ -41,7 +44,10 @@ Future<void> main(List<String> args) async {
         'Helper, RP, binding path and interactive terminal required',
       );
     }
-    final file = File(options['--binding']!);
+    final file = File(options['--binding']!).absolute;
+    // Hold a separate stable inode while atomically replacing the saved record.
+    lock = await File('${file.path}.lock').open(mode: FileMode.append);
+    await lock.lock(FileLock.exclusive);
     Map<String, Object?>? binding;
     Map<String, Object?>? saved;
     if (await file.exists()) {
@@ -50,17 +56,22 @@ Future<void> main(List<String> args) async {
       }
       saved = (jsonDecode(await file.readAsString()) as Map)
           .cast<String, Object?>();
-      if (saved['version'] != 1) {
+      if (saved['version'] != 2) {
         throw const FormatException('Invalid probe file');
       }
-      binding = (saved['binding'] as Map).cast<String, Object?>();
+      final parsed = PasskeyBinding.fromJson(
+        (saved['binding'] as Map).cast<String, Object?>(),
+      );
+      if (parsed.route != PasskeyRoute.system) {
+        throw const FormatException('Wrong route');
+      }
+      binding = parsed.toJson();
       if (binding['domain'] != options['--rp']) {
         throw const FormatException('Wrong domain');
       }
     }
     final request = <String, Object?>{
-      'version': 1,
-      'evidenceVersion': 1,
+      'version': 2,
       'domain': options['--rp'],
       'binding': binding,
       'input': binding?['input'] ?? encodeBytes(randomBytes(32)),
@@ -102,41 +113,30 @@ Future<void> main(List<String> args) async {
       metadata: (jsonDecode(utf8.decode(result.sublist(33))) as Map)
           .cast<String, Object?>(),
       allowLocalhost: allowLoopback,
-    );
-    if (received['version'] != 1 ||
-        received['domain'] != options['--rp'] ||
-        received['input'] != request['input'] ||
-        received['userId'] != request['userId']) {
-      throw const FormatException('Wrong probe binding');
-    }
-    if (binding == null) {
-      // Do not overwrite a file another process created during enrollment.
-      final restart = await createRestartCheck(
-        Uint8List.sublistView(result, 1, 33),
-        received,
-      );
-      await file.create(exclusive: true);
-      await file.writeAsString(
-        jsonEncode({
-          'version': 1,
-          'binding': received,
-          'restartCheck': restart,
-        }),
-        flush: true,
-      );
-    } else {
-      if (jsonEncode(received) != jsonEncode(binding)) {
-        throw const FormatException('Changed probe binding');
-      }
+    ).toJson();
+    if (binding != null) {
       await verifyRestartCheck(
         Uint8List.sublistView(result, 1, 33),
-        received,
+        binding,
         (saved!['restartCheck'] as Map).cast<String, Object?>(),
       );
       stdout.writeln(
         'Saved encryption check passed: the PRF matches the earlier process.',
       );
     }
+    // Bind the updated verification state to the same recovered secret, then
+    // publish the record and marker together. Failed verification writes nothing.
+    final restart = await createRestartCheck(
+      Uint8List.sublistView(result, 1, 33),
+      received,
+    );
+    stage = await file.parent.createTemp('.keypass-probe-');
+    final pending = File('${stage.path}/record.json');
+    await pending.writeAsString(
+      jsonEncode({'version': 2, 'binding': received, 'restartCheck': restart}),
+      flush: true,
+    );
+    await pending.rename(file.path);
     stdout.writeln(
       'Received 32 PRF bytes over the paired encrypted channel.\n'
       'Dart independently verified both assertion signatures and ceremony context.\n'
@@ -152,6 +152,8 @@ Future<void> main(List<String> args) async {
     exitCode = 1;
   } finally {
     result?.fillRange(0, result.length, 0);
+    await stage?.delete(recursive: true);
+    await lock?.close();
     await interrupt?.cancel();
     await lines?.cancel();
     await bridge?.close();

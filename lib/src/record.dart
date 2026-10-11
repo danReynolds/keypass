@@ -2,7 +2,7 @@ part of 'client.dart';
 
 /// Immutable, nonsecret metadata required to recover a credential's secret.
 /// Integrity-protect stored records; decoding does not establish authenticity.
-/// v2 system and v3 hardware encodings preserve existing development records.
+/// System and hardware records use their route-specific encodings.
 final class PasskeyRecord {
   PasskeyRecord._(this._binding);
   factory PasskeyRecord.fromJson(Map<String, Object?> json) =>
