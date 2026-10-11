@@ -14,7 +14,7 @@ remains unconnected.
 - Enrollment uses `attestation: none`. The verifier parses the original CBOR
   attestation object, requires an empty statement with format `none`, and obtains
   the credential ID and COSE key from its authenticator data. It does not trust
-  the browser's separately parsed SPKI key; the probe checks that they match.
+  separately supplied browser key material.
 - Exact configured origin and RP hash, fresh 32-byte challenge, expected ceremony
   type, required UP/UV flags, expected credential ID and returned user handle.
 - Browser HTTPS origins and native app origins are checked explicitly. Android
@@ -32,23 +32,20 @@ remains unconnected.
 ## Credential state
 
 Registration returns backup eligibility, current backup state and signature
-counter. With prior state supplied, assertions must preserve backup eligibility.
+counter. Assertions must always preserve the saved backup eligibility.
 Both counters being zero is valid, including for synced passkeys. If either
 counter is nonzero, this profile requires an increase. A counter rollback is
 rejected; it is not described as proof of cloning. Backup state may change.
 
-Production adapters must persist this state with the credential metadata and
-commit updated state only after successful verification. Public binding encoding v2 now carries this state. Enrollment
-chains it through both assertions; the unlock callback receives an updated
-binding for the consumer to persist atomically. Legacy v1 SDK bindings fail
-structural validation; there is no silent state reset.
+Adapters persist this state with the credential metadata and commit updated
+state only after successful verification. Both current system and hardware
+records carry it. Enrollment chains it through both assertions; `unlock`
+returns an updated record for the consumer to persist atomically.
 
-The original standalone probe saved SPKI metadata without these state fields.
-It remains usable for the real-provider restart test: the first verified
-assertion establishes a baseline for this run, and the second must preserve
-eligibility and satisfy counter policy. This does not establish counter
-continuity across old probe runs. No replacement enrollment or silent public
-binding migration occurs.
+The standalone browser probe now uses the same system records and verifier.
+It retains backup/counter state across runs and atomically saves the updated
+record with its encrypted marker. Old probe files are rejected; there is no
+conversion or path that accepts missing verification state.
 
 ## Remaining trust boundary
 

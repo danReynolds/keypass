@@ -33,10 +33,10 @@ dart run tool/browser_probe.dart \
    and approve both sides. Never auto-approve pairing in a real provider run.
 3. Create a development passkey, then explicitly request its two evaluations.
    These may show separate provider prompts. No passphrase or PRF copy/paste.
-4. The browser verifies ES256 assertion signatures and checks fresh challenges,
-   exact origin, RP hash, credential/user handle, UP/UV and equal 32-byte PRF
-   outputs. It sends a binary result over the encrypted paired channel.
-5. Dart independently verifies the raw registration/assertion evidence with its
+4. The browser collects raw registration/assertion evidence and checks equal
+   32-byte PRF outputs. It sends a binary result over the encrypted paired channel.
+5. Dart verifies signatures, fresh challenges, exact origin, RP hash, credential/
+   user handle, UP/UV and saved authenticator state with its
    [bounded verifier](webauthn-verifier.md). The CLI then saves public credential
    metadata and an encrypted test marker, then
    clears its owned result buffer. The PRF is never printed or saved.
@@ -50,8 +50,11 @@ prompts. Stop automated browser interaction and screen inspection throughout
 those steps; the tester reported interference with Touch ID during inspection.
 Monitor only CLI output, and resume browser inspection after the tester finishes.
 
-An existing file never triggers replacement enrollment. The marker is a probe
-format, not Keypass's public binding format or Keybay's envelope format.
+An existing file never triggers replacement enrollment. The version-2 probe file
+contains a current Keypass system record and an encrypted test marker. Old
+version-1 probe files are rejected; use a new disposable file to enroll again.
+Successful reuse verifies the previous marker, then atomically saves the updated
+record and marker while holding an exclusive file lock.
 A failed creation can leave a test passkey in the provider; remove it there
 when finished. The tool does not delete provider credentials.
 
@@ -96,12 +99,13 @@ no relay. The production transport and pairing UX remain subject to qualificatio
 - JavaScript CryptoKeys and managed-runtime copies cannot be promised immediate
   physical erasure. This is not a native secret-memory implementation.
 - Dart parses the original CBOR attestation object and COSE key and verifies
-  both assertion signatures against the original CLI challenges. Browser checks
-  remain as defense in depth. The narrow ES256/none profile and legacy saved-state
-  limits are documented in the [verifier contract](webauthn-verifier.md). Client
+  both assertion signatures against the original CLI challenges. The browser
+  collects evidence; Dart is the single cryptographic verifier before secret use.
+  The narrow ES256/none profile is documented in the
+  [verifier contract](webauthn-verifier.md). Client
   PRF bytes remain trusted browser/provider output, not independently covered by
   the authenticator signature. Public backend wiring still requires provider
-  qualification, credential-state persistence and transport/identity review.
+  qualification and transport/identity review.
 
 ## Evidence and next work
 
@@ -120,8 +124,7 @@ scoped [validation receipts](validation.md).
 Still required: a deployed HTTPS helper connecting to loopback, Safari/Firefox
 and local network permission prompts, Linux desktop/provider execution, provider
 sync/offline behavior, identity/pairing review, real-provider raw registration
-verification in Dart, independent security review, credential-state persistence
-and public API wiring. Linux ARM64 automated tests and AOT compilation
+verification in Dart, independent security review and public API wiring. Linux ARM64 automated tests and AOT compilation
 have passed in Docker; those do not qualify desktop UI/provider behavior.
 Do not generalize localhost or Node results into supported browser/provider claims.
 

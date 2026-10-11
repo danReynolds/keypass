@@ -85,7 +85,7 @@ async function main() {
   status.textContent = request.binding
     ? "Use the saved test passkey twice. Both PRF outputs must match."
     : "Create a development passkey, then verify it twice. It will remain in your provider until you remove it.";
-  const result = await runProbe(request, location.origin, navigator.credentials, gesture, abort.signal);
+  const result = await runProbe(request, navigator.credentials, gesture, abort.signal);
   try {
     await post("result", await channel.seal(result));
     status.textContent = "Repeatable PRF received and sent to the paired CLI. This is a development probe, not vault access.";

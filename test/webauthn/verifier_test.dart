@@ -64,10 +64,6 @@ void main() {
     expect(registered.publicKeyCose, bytes(vectors['publicKeyCose']));
     expect(registered.state.backupEligible, isTrue);
     expect(verify(vectors['assertion'] as Map<String, Object?>).signCount, 0);
-    expect(
-      coseFromP256Spki(bytes(vectors['publicKeySpki'])),
-      registered.publicKeyCose,
-    );
   });
   for (final name in [
     'missingUV',

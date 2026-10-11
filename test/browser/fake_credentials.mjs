@@ -14,7 +14,6 @@ function der(raw) {
 }
 export async function fakeCredentials(origin, mutation = () => {}) {
   const key = await crypto.subtle.generateKey({name: "ECDSA", namedCurve: "P-256"}, true, ["sign", "verify"]);
-  const spki = await crypto.subtle.exportKey("spki", key.publicKey);
   const jwk = await crypto.subtle.exportKey("jwk", key.publicKey);
   const cose = cbor(new Map([[1,2],[3,-7],[-1,1],[-2,new Uint8Array(Buffer.from(jwk.x,"base64url"))],[-3,new Uint8Array(Buffer.from(jwk.y,"base64url"))]]));
   const id = new Uint8Array(32).fill(21);
@@ -25,6 +24,7 @@ export async function fakeCredentials(origin, mutation = () => {}) {
     const auth = new Uint8Array(37);
     auth.set(new Uint8Array(await crypto.subtle.digest("SHA-256", utf8.encode(domain))));
     auth[32] = type === "webauthn.create" ? 0x45 : 5;
+    new DataView(auth.buffer).setUint32(33, count);
     const client = utf8.encode(JSON.stringify({
       type, challenge: encode(options.challenge), origin, crossOrigin: false,
     }));
@@ -32,6 +32,9 @@ export async function fakeCredentials(origin, mutation = () => {}) {
   }
   return {
     outputs,
+    binding(input) { return {version: 2, prf: "webauthn-prf-v1", domain,
+      credentialId: encode(id), userId: encode(user), publicKeyCose: encode(cose),
+      input, backupEligible: false, backupState: false, signCount: count}; },
     async create({publicKey: options}) {
       domain = options.rp.id; user = options.user.id;
       const result = await response("webauthn.create", options);
@@ -42,12 +45,13 @@ export async function fakeCredentials(origin, mutation = () => {}) {
         type: "public-key", rawId: id.buffer,
         response: {
           ...result, getAuthenticatorData: () => result.authenticatorData,
-          getPublicKey: () => spki, getPublicKeyAlgorithm: () => -7,
+
         },
         getClientExtensionResults: () => ({prf: {enabled: true}}),
       };
     },
     async get({publicKey: options}) {
+      count++;
       const result = await response("webauthn.get", options);
       const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", result.clientDataJSON));
       const data = new Uint8Array(37 + hash.length);
@@ -59,7 +63,7 @@ export async function fakeCredentials(origin, mutation = () => {}) {
       const extension = {prf: {results: {first: secret.buffer}}};
       const credential = {type: "public-key", rawId: id.buffer, response: result,
         getClientExtensionResults: () => extension};
-      mutation(credential, extension, ++count);
+      mutation(credential, extension, count);
       return credential;
     },
   };

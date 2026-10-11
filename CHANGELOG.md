@@ -1,3 +1,13 @@
+## Unreleased
+
+- Require saved authenticator state on every assertion. Remove the browser
+  prototype's missing-state exception and SDK SPKI conversion helpers.
+- Use current system records in the browser probe, with one Dart verifier and
+  atomic counter/backup-state persistence. Reject old probe files explicitly.
+  Current SDK system and hardware record formats are unchanged.
+- Remove the development library-path override. Desktop assets and explicitly
+  packaged native hosts retain their fixed loading paths.
+
 ## 0.1.0-dev.2
 
 - Bundle desktop hardware adapters automatically with Dart native build hooks.
@@ -13,7 +23,6 @@
   transfer; tighten native success publication and late-callback ownership.
 - Migrate Dart CLI and native-host demos, preserving saved ciphertext/AAD.
 - Document the Keybay consumer boundary without changing Keybay itself.
-
 ## 0.1.0-dev.1
 
 - Establish the experimental Flutter-free Dart API and shared lifecycle core.

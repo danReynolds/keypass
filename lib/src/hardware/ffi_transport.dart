@@ -31,10 +31,6 @@ final class HardwareFfiTransport implements NativeTransport {
       if (!Platform.isMacOS && !Platform.isLinux) {
         throw const PasskeyException(PasskeyErrorCode.backendUnavailable);
       }
-      const configured = String.fromEnvironment('KEYPASS_HARDWARE_LIBRARY');
-      if (configured.isNotEmpty) {
-        return _library = DynamicLibrary.open(configured);
-      }
       final directory = File(Platform.resolvedExecutable).parent.path;
       final name = Platform.isMacOS
           ? 'libkeypass_hardware.dylib'
@@ -58,12 +54,10 @@ final class HardwareFfiTransport implements NativeTransport {
     // Explicitly packaged AOT consumers retain their reviewed sibling-library
     // layout. Normal Dart/Flutter desktop execution uses the registered asset.
     const manualBundle = bool.fromEnvironment('keypass.hardware.manual_bundle');
-    const configured = String.fromEnvironment('KEYPASS_HARDWARE_LIBRARY');
     final useAssets =
         _library == null &&
         (Platform.isMacOS || Platform.isLinux) &&
-        !manualBundle &&
-        configured.isEmpty;
+        !manualBundle;
     final lib = useAssets ? null : _lib;
     final version = useAssets
         ? assets.hardwareAbiVersion

@@ -49,8 +49,7 @@ compile and bundle the adapter and its dependencies automatically during
 Custom native packagers can explicitly compile with
 `-Dkeypass.hardware.manual_bundle=true` and place `libkeypass_hardware.dylib` /
 `libkeypass_hardware.so` beside their runtime, with its dependency closure.
-`KEYPASS_HARDWARE_LIBRARY` remains an explicit development override. There is
-no fallback from a failing registered code asset to another library.
+There is no library-path override and no fallback from a failing registered code asset to another library.
 
 
 On Linux the application needs permission to access the USB HID device, usually through distribution-provided FIDO udev rules. Do not run the application as root to bypass missing permissions.
