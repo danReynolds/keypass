@@ -89,8 +89,15 @@ final class PasskeyBinding {
     required this.authenticatorState,
     this.route = PasskeyRoute.system,
     List<String> transports = const [],
-  }) : transports = _transports(transports, route),
-       domain = validateDomain(domain, PasskeyErrorCode.invalidBinding),
+    bool allowLocalhost = false,
+  }) : _allowLocalhost = allowLocalhost,
+       transports = _transports(transports, route),
+       domain =
+           allowLocalhost &&
+               route == PasskeyRoute.system &&
+               domain == 'localhost'
+           ? domain
+           : validateDomain(domain, PasskeyErrorCode.invalidBinding),
        credentialId = _bytes(credentialId, 1, 1024),
        userId = _bytes(userId, 1, 64),
        publicKeyCose = _bytes(publicKeyCose, 1, 4096),
@@ -100,6 +107,8 @@ final class PasskeyBinding {
     }
   }
 
+  // Development probe opt-in only; never persisted or enabled by public APIs.
+  final bool _allowLocalhost;
   final PasskeyRoute route;
 
   /// Hints only; a transport change must not change credential identity.
@@ -133,7 +142,10 @@ final class PasskeyBinding {
     'signCount': authenticatorState.signCount,
   };
 
-  factory PasskeyBinding.fromJson(Map<String, Object?> json) {
+  factory PasskeyBinding.fromJson(
+    Map<String, Object?> json, {
+    bool allowLocalhost = false,
+  }) {
     final keys = {
       'version',
       if (json['version'] == 3) ...['route', 'verification', 'transports'],
@@ -164,6 +176,7 @@ final class PasskeyBinding {
       throw const PasskeyException(PasskeyErrorCode.invalidBinding);
     }
     return PasskeyBinding(
+      allowLocalhost: allowLocalhost,
       route: json['version'] == 3 ? PasskeyRoute.hardware : PasskeyRoute.system,
       transports: json['version'] == 3
           ? (json['transports'] as List).cast<String>()
@@ -182,6 +195,7 @@ final class PasskeyBinding {
   }
 
   PasskeyBinding withState(AuthenticatorState state) => PasskeyBinding(
+    allowLocalhost: _allowLocalhost,
     route: route,
     transports: transports,
     domain: domain,

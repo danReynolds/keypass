@@ -39,6 +39,7 @@ PasskeyBinding verifyProbeEvidence({
       prfEnabled: registration['prfEnabled'] == true,
     );
     binding = PasskeyBinding(
+      allowLocalhost: allowLocalhost,
       domain: domain,
       credentialId: verified.credentialId,
       userId: _bytes(request['userId'], 64),
@@ -48,7 +49,10 @@ PasskeyBinding verifyProbeEvidence({
     );
   } else {
     if (metadata['registration'] != null) _bad();
-    binding = PasskeyBinding.fromJson(_map(saved));
+    binding = PasskeyBinding.fromJson(
+      _map(saved),
+      allowLocalhost: allowLocalhost,
+    );
     if (binding.route != PasskeyRoute.system ||
         binding.domain != domain ||
         encodeBytes(binding.input) != request['input'] ||

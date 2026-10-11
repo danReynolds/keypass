@@ -2,10 +2,10 @@
 import {runProbe} from '../../tool/browser/ceremony.mjs';
 import {fakeCredentials} from './fake_credentials.mjs';
 import {encode} from '../../tool/browser/protocol.mjs';
-const origin='https://vault.example.com';
+const origin=process.argv[2] ?? 'https://vault.example.com';
 const credentials=await fakeCredentials(origin);
 const random=()=>encode(crypto.getRandomValues(new Uint8Array(32)));
-const request={version:2,domain:'vault.example.com',binding:null,userId:random(),input:random(),registrationChallenge:random(),challenges:[random(),random()]};
+const request={version:2,domain:new URL(origin).hostname,binding:null,userId:random(),input:random(),registrationChallenge:random(),challenges:[random(),random()]};
 const result=await runProbe(request,credentials,(_,action)=>action());
 const metadata=JSON.parse(new TextDecoder().decode(result.subarray(33))); result.fill(0);
 const reuse={...request,binding:credentials.binding(request.input),registrationChallenge:random(),challenges:[random(),random()]};

@@ -61,6 +61,7 @@ Future<void> main(List<String> args) async {
       }
       final parsed = PasskeyBinding.fromJson(
         (saved['binding'] as Map).cast<String, Object?>(),
+        allowLocalhost: allowLoopback,
       );
       if (parsed.route != PasskeyRoute.system) {
         throw const FormatException('Wrong route');

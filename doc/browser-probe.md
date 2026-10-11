@@ -33,10 +33,10 @@ dart run tool/browser_probe.dart \
    and approve both sides. Never auto-approve pairing in a real provider run.
 3. Create a development passkey, then explicitly request its two evaluations.
    These may show separate provider prompts. No passphrase or PRF copy/paste.
-4. The browser verifies ES256 assertion signatures and checks fresh challenges,
-   exact origin, RP hash, credential/user handle, UP/UV and equal 32-byte PRF
-   outputs. It sends a binary result over the encrypted paired channel.
-5. Dart independently verifies the raw registration/assertion evidence with its
+4. The browser collects raw registration/assertion evidence and checks equal
+   32-byte PRF outputs. It sends a binary result over the encrypted paired channel.
+5. Dart verifies signatures, fresh challenges, exact origin, RP hash, credential/
+   user handle, UP/UV and saved authenticator state with its
    [bounded verifier](webauthn-verifier.md). The CLI then saves public credential
    metadata and an encrypted test marker, then
    clears its owned result buffer. The PRF is never printed or saved.

@@ -28,6 +28,42 @@ void main() {
       expect(verify(reuse: true).authenticatorState.signCount, 4);
     },
   );
+  test(
+    'localhost enrollment and reload require explicit probe opt-in',
+    () async {
+      final result = await Process.run('node', [
+        'test/browser/evidence.mjs',
+        'http://localhost:8765',
+      ]);
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+      data = jsonDecode(result.stdout as String) as Map<String, Object?>;
+      expect(verify, throwsA(isA<PasskeyException>()));
+      final enrolled = verifyProbeEvidence(
+        request: section('request'),
+        origin: data['origin'] as String,
+        metadata: section('metadata'),
+        allowLocalhost: true,
+      );
+      final saved = (jsonDecode(jsonEncode(enrolled.toJson())) as Map)
+          .cast<String, Object?>();
+      expect(
+        () => PasskeyBinding.fromJson(saved),
+        throwsA(isA<PasskeyException>()),
+      );
+      section('reuse')['binding'] = PasskeyBinding.fromJson(
+        saved,
+        allowLocalhost: true,
+      ).toJson();
+      final reused = verifyProbeEvidence(
+        request: section('reuse'),
+        origin: data['origin'] as String,
+        metadata: section('reuseMetadata'),
+        allowLocalhost: true,
+      );
+      expect(reused.domain, 'localhost');
+      expect(reused.authenticatorState.signCount, 4);
+    },
+  );
   test('old prototype records are rejected', () {
     section('reuse')['binding'] = {'version': 1};
     expect(() => verify(reuse: true), throwsA(isA<Exception>()));
