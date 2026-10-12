@@ -11,10 +11,12 @@ counters. Enrollment chains the state through both evaluations; unlock returns
 the updated opaque record so the consumer can commit it. v1 bindings
 are rejected rather than silently resetting verification state.
 
-The native adapters are connected for development when their native host library
-is linked. Production qualification still requires real-provider native-host
-proof, packaged Dart consumers, and the device tests in the implementation plan. The recording backend in tests
-intentionally uses invalid dummy COSE material and is not exported by the package.
+Built-in native adapters use the verification profiles above when their host
+libraries are linked. Desktop hardware is packaged by Dart build hooks; app
+hosts retain the setup in [platforms](platforms.md). Observed physical flows and
+remaining coverage are indexed in the [review guide](external-review.md).
+The recording backend in tests intentionally uses invalid dummy COSE material
+and is not exported by the package; its tests prove core orchestration only.
 
 ## Responsibilities
 

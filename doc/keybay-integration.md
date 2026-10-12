@@ -1,79 +1,100 @@
-# Keybay integration target
+# Keybay integration
 
-Keypass provides verified, credential-bound PRF bytes. Keybay continues owning
-the vault, platform protector, sessions, authenticated policy, key envelopes,
-rotation, migration and recovery. Keypass has no dependency on Keybay.
+Keybay SDK and CLI 0.2.0 are published with passkey protection through exact-pinned
+Keypass 0.1.0-dev.2. Keypass has no dependency on Keybay. The
+[Keybay SDK guide](https://github.com/danReynolds/keybay/blob/main/doc/sdk.md#add-passkey-protection)
+owns the consumer API; [RFC 0003](https://github.com/danReynolds/keybay/blob/main/doc/rfcs/0003-passkey-methods.md)
+owns the envelope construction and transaction rules.
 
-The current [Keypass consumer SDK](sdk.md) is ready for an integration prototype;
-this document remains a target, not an implemented Keybay integration.
+## Consumer flow
 
-Keybay would hold a configured `Keypass.system(rpId:)` or
-`Keypass.hardware(rpId:, requestPin:, selectConnection:, onEvent:)` client for
-each enabled route. Both expose `check()`, `create(label:)` and `unlock(record)`.
-The same RP ID can be configured for both routes; this does not make separately
-created credentials interchangeable. Saved records retain their original route
-and identity. The clients require no disposal.
-
-For an added method, Keybay calls `create`, derives purpose-bound wrapping
-material from `result.secret`, and atomically commits `result.record.toJson()`
-with its authenticated envelope and method-directory update. For an existing
-method, it decodes the saved `PasskeyRecord`, calls `unlock`, authenticates and
-unwraps the original saved envelope, then persists the returned updated record
-before publishing the session. Every path disposes `PasskeyResult` in `finally`,
-including derivation, verification or storage failures. Keybay separately
-clears its own derived keys and temporary plaintext.
-
-`PasskeyRecord.id` is stable across counter/backup-state updates and transport
-changes. Use a reviewed stable method ID and context for key-wrapper AAD; do not
-bind an immutable envelope to mutable serialized verification state. The whole
-record still needs integrity protection in Keybay's authenticated method
-directory. Decoding a record does not authenticate it.
-
-Preserve Keybay's credential API:
+Applications using Keybay do not construct a Keypass client or persist its records:
 
 ```dart
-// Proposed addition to Keybay; not implemented by this repository.
-final session = await Keybay.open(credential: PasskeyCredential());
-final method = await session.auth.add(PasskeyCredential(label: 'Personal vault'));
-await session.auth.update(PasskeyCredential(methodId: method.id));
-await session.auth.remove(method.id);
+import 'package:keybay/keybay.dart';
+
+const passkey = PasskeyCredential.system(rpId: 'vault.example.com');
+final session = await Keybay.open();
+try {
+  await session.auth.add(passkey, label: 'Personal vault');
+  await session.set('api-token', tokenFromOAuth);
+} finally {
+  await session.close();
+}
+
+// On a later run: authenticate an existing enrollment; do not create one.
+final reopened = await Keybay.open(credential: passkey);
+try {
+  final methods = await reopened.auth.list();
+  final selected = methods.whereType<PasskeyMethod>().single;
+  await reopened.auth.remove(selected);
+} finally {
+  await reopened.close();
+}
 ```
 
-Consumers should not construct a Keypass client merely to use Keybay. Keybay
-owns its configured client internally. `PasskeyCredential` is immutable request
-metadata; it contains no PRF bytes and presents no UI on construction. Existing
-passphrase callers retain their current API.
+For an existing protected store, authenticate its current method before adding
+another. Hardware uses `PasskeyCredential.hardware(rpId:, pin:)`, with optional
+caller-owned UTF-8 PIN bytes. Keybay snapshots those bytes synchronously and
+clears its copy; the caller must clear its own. Credentials have no UI callbacks.
+System passkeys need a configured native app host and domain association;
+standalone CLIs use hardware. Direct hardware needs no hosted RP website.
 
-| Vault state | Explicit open with passkey |
+`open(credential:)` is authentication-only. A missing store fails with
+`storeNotFound` before enrollment or platform-root creation. Credential-free
+`open()` may initialize fully absent platform-only state. Enrollment is explicit
+through `auth.add`, and must succeed before storing data that should require it.
+
+Auth management is `add`, `list` and `remove(method)`, with no update or replace.
+There may be zero or one passphrase and multiple passkeys, at most eight methods
+in total. For passkeys, `open` may omit `methodId` only when exactly one enrollment
+matches the RP ID and route. A method descriptor from `add`/`list` can be passed
+to `remove`; it is checked against the vault and current enrollment.
+
+Protection is `platform AND (passphrase OR passkey A OR passkey B ...)`.
+Removing the last method explicitly returns to platform-only protection. Add and
+remove are separate commits; prefer adding a replacement passkey first when
+capacity permits. Removal neither deletes the provider credential nor revokes
+previously copied complete snapshots.
+
+## Ownership and cryptography
+
+| Keypass owns | Keybay owns |
 | --- | --- |
-| Absent | Enroll, prove PRF, atomically initialize and return session |
-| Has passkey method | Unlock the saved record and unwrap its key material |
-| Platform-only or another method only | Protection mismatch, without mutation |
-| Partial/corrupt/invalidated | Fail closed, without creating over existing state |
+| Credential registration and verified PRF recovery | Mandatory platform root and application identity |
+| RP/route binding and opaque record encoding | Method selection and authenticated method directory |
+| Provider/device interaction and temporary-result cleanup | Purpose-bound derivation, HPKE envelopes and encrypted record frames |
+| Advanced counter/backup-state output | Atomic persistence, key rotation, concurrency and recovery policy |
 
-Opening without a credential when additional protection is required returns
-`AuthRequired` without a provider prompt. Record `get/set/list` operations stay
-prompt-free once the session is open. Auth management is explicit.
+Keybay uses the PRF output as high-entropy input to domain-separated HKDF, not
+Argon2. It derives an X25519 recipient key for an RFC 9180 HPKE envelope containing
+the store key. The platform protector seals the method package; the manifest
+binds the complete package. A recovered store key is provisional until the
+manifest authenticates. This is encryption protection, not a UI gate.
 
-The intended additional protection is cryptographic: use a reviewed HKDF/context
-and authenticated key envelope with PRF output. It is not merely a UI gate.
-Keybay's mandatory platform protection remains. A copied vault plus a synced
-passkey cannot bypass the original host's required platform root.
+On enrollment, Keybay commits the record and envelope with the method change.
+On unlock, it verifies the original saved envelope and persists the updated
+Keypass verification state before returning a session. Its transaction rejects
+conflicting authentication changes. Stable record identity binds derivation;
+mutable record state is separately authenticated. Keybay disposes every temporary
+Keypass result and clears its own owned derivation buffers.
 
-Passphrase and passkey are alternative routes unless a separate policy explicitly
-requires both. Adding multiple envelopes needs a reviewed format: authenticate
-the method directory and wrapping public keys under the vault's own key, rotate
-current keys when revoking a method, and reject incompatible old clients. The
-investigated per-method public/private wrapping-key design permits rotation
-without presenting every other passkey; that design still needs cryptographic
-review and vectors before implementation.
+Adding/removing methods rotates the store key and re-encrypts the records.
+Surviving methods are rewrapped using their authenticated public recipient keys,
+without retaining their secrets or asking for every credential again. Record
+operations and authenticated method listing never prompt or reacquire providers.
+A portable hardware credential does not make the platform-bound vault portable.
 
-Removing a Keybay method and deleting a provider credential are separate actions.
-Revocation cannot make already copied old snapshots undecryptable. Provider sync
-is not vault portability or independent recovery. Do not cache the PRF secret
-in the ordinary platform keystore as a fallback.
+## Review and release boundary
 
-Credential snapshots must split by kind: copy and clear passphrase bytes;
-snapshot passkey request metadata and asynchronously obtain temporary PRF bytes.
-Enrollment failure must leave the existing vault policy intact. Handle a possible
-orphan provider credential without quietly replacing a saved unlock route.
+Review both the [Keypass guide](external-review.md) and
+[Keybay guide](https://github.com/danReynolds/keybay/blob/main/doc/external-review.md).
+Keybay's checked-in dependency still resolves the published Keypass prerelease;
+new Keypass source cleanup is not implicitly used by a Keybay checkout. Record
+both source revisions and the actual resolved package/lockfile in joint tests.
+A local dependency override is a separate test configuration, not a released
+integration. Neither a demo nor the published release constitutes an external
+security audit. Current Keybay source rejects the retired V2 singleton-passphrase
+format without migration. Published SDK/CLI 0.2.0 artifacts predate that removal
+and retain its authenticated conversion path; neither version migrates V1 stores.
+Do not apply the current-source compatibility statement to those older artifacts.

@@ -2,152 +2,146 @@
 
 Passkey-derived encryption secrets for Dart applications, without Flutter.
 
-Keypass is being built to enroll passkeys through OS credential providers or
-physical FIDO2 security keys and obtain repeatable [WebAuthn PRF](https://www.w3.org/TR/webauthn-3/#prf-extension)
-output. Applications such as Keybay can use that output to protect encryption keys.
-The provider handles the passkey and verification UI; Keypass does not read
-fingerprints, face data, or a passkey's private signing key.
+Keypass creates credentials through OS passkey providers or physical FIDO2 keys
+and recovers repeatable 32-byte encryption material through WebAuthn PRF or
+CTAP `hmac-secret`. A successful sign-in alone is insufficient. Keypass verifies
+ceremony evidence and requires user verification; it does not read biometric
+data or export a passkey's private signing key.
 
-**Status: experimental OS-provider, desktop USB and phone hardware adapters.** Swift
-macOS/iOS, Kotlin/JNI Android and Windows WebAuthn adapters feed the same Dart
-verifier and binary-secret transport. The signed macOS FFI demo passed enrollment,
-fresh-process decryption and cancellation/retry through the normal public client.
-A physical iPhone passed those core checks with a diagnostic backend wrapper;
-the undecorated iOS path and broader lifecycle coverage remain to be verified.
-Android has emulator host smoke evidence; real-provider verification is deferred.
-A shared Flutter test app exercises packaged native FFI consumers without adding
-Flutter to the SDK. Windows has cross-compiled. See [consumer setup](doc/platforms.md)
-and the scoped [validation receipts](doc/validation.md).
+[Keypass 0.1.0-dev.2](https://pub.dev/packages/keypass/versions/0.1.0-dev.2)
+is published as a prerelease. Current source also includes **unreleased**
+cleanup listed in the [changelog](CHANGELOG.md). APIs and record encodings are
+pre-1.0; publication does not establish support for every provider or device.
+[Keybay 0.2.0](doc/keybay-integration.md) consumes the published package.
 
-The new direct USB adapter uses libfido2 and the public
-[Keypass.hardware API](native/hardware/README.md). It requires verified
-`hmac-secret` output, a PIN or configured on-key verification, and touch. Provider
-bindings keep their existing encoding; hardware bindings explicitly carry their
-route. The [iPhone NFC adapter](native/hardware_apple/README.md) now implements
-the same contract with standard FIDO CTAP through pinned YubiKit Swift. Physical
-hardware support is capability-based, without vendor allowlists. Native packaging
-is still manual. The [Android USB/NFC adapter](native/hardware_android/README.md)
-is implemented with generic Android connections and the YubiKit FIDO protocol
-library. A physical Pixel 6a recovered the Mac-created marker over NFC with the
-same key; Android USB and broader qualification remain pending. Wired iPhone USB and Windows hardware
-remain unfinished. A physical YubiKey passed macOS USB
-enrollment, matching secret evaluations and fresh-process authenticated
-decryption through the standalone Dart CLI. The same key then decrypted that
-Mac-created marker on the iPhone and Android over NFC. Other hardware paths and broader
-failure/lifecycle checks remain unqualified; exact proof is recorded separately.
+## Use the SDK
 
-The separate browser probe recovered Google Password Manager's PRF output in a
-fresh AOT CLI process and decrypted its earlier saved test marker. Browser-assisted
-CLI access is now deferred. Configuration is explicit in the Dart constructors.
-Native clients require the corresponding host library to be packaged; absent libraries
-return `backendUnavailable`, and missing windows return `hostUnavailable`.
-The package is unpublished; its API and binding encoding are not frozen.
-
-## Consumer API
-
-Configure a client once and reuse it. Each operation owns its native resources;
-the client itself needs no disposal.
+Configure a route once. Construction opens no device or dialog, and the client
+needs no disposal. An RP ID scopes credentials; one RP ID can have many records.
 
 ```dart
 import 'package:keypass/keypass.dart';
 
 final passkeys = Keypass.system(rpId: 'vault.example.com');
-final readiness = await passkeys.check(); // Optional, no prompt.
+final readiness = await passkeys.check(); // Optional; does not prompt.
 if (!readiness.canAttempt) {
-  // Present readiness.reason or an independently configured access method.
+  // Explain readiness.reason through your application's UI.
   return;
 }
 
-final result = await passkeys.create(label: 'Personal vault');
+final created = await passkeys.create(label: 'Personal vault');
 try {
-  // Use result.secret with your purpose-bound KDF and key-wrapping scheme.
-  // Atomically save result.record.toJson() with the authenticated envelope.
+  // Derive a purpose-bound wrapping key from created.secret.
+  // Atomically save created.record.toJson() with an authenticated envelope.
 } finally {
-  result.dispose();
+  created.dispose();
 }
 ```
 
-For direct physical keys, construct the same interface with
-`Keypass.hardware(rpId: 'vault.example.com', requestPin:, selectConnection:, onEvent:)`.
-Supply your application's PIN/connection UI where required. The stable RP ID
-scopes credentials; direct hardware access needs no hosted website.
+On a later run, decode the saved nonsecret record and recover the same material:
 
-| Operation | Result |
+```dart
+final record = PasskeyRecord.fromJson(savedRecordJson);
+final opened = await passkeys.unlock(record);
+try {
+  // Authenticate metadata and decrypt the original saved envelope.
+  // Atomically persist opened.record.toJson() before publishing a session.
+} finally {
+  opened.dispose();
+}
+```
+
+These sketches show the API boundary, not a complete encryption implementation.
+The consumer owns encryption, integrity-protected metadata, atomic persistence,
+concurrency and recovery. See the [SDK guide](doc/sdk.md) and
+[executable encrypted-marker example](demo/provider_app/lib/store.dart).
+
+For direct physical keys, configure `Keypass.hardware`:
+
+```dart
+final hardware = Keypass.hardware(
+  rpId: 'dev.example.vault',
+  requestPin: ui.requestPin,
+  selectConnection: ui.selectConnection,
+  onEvent: ui.onHardwareEvent,
+);
+```
+
+`ui` represents application-owned handlers; their exact types and optional
+behavior are in the [SDK guide](doc/sdk.md#configure-the-access-route-once).
+Hardware access needs a stable RP namespace, native device access and a
+compatible key; it needs no website or domain association. The namespace does
+not authenticate the calling executable. Apple/Android system access uses the
+app's associated domain and OS provider dialog. The experimental Windows adapter
+uses a caller-configured RP ID without an app/domain association guarantee.
+No Keypass account or API key
+is required, and no Keypass-operated runtime service is involved.
+
+| Operation | Contract |
 | --- | --- |
-| `check()` | Prompt-free readiness to attempt an operation; not proof of PRF support |
-| `create(label:, cancellation:)` | A new credential, two verified matching PRFs, and an owned `PasskeyResult` |
-| `unlock(record, cancellation:)` | The existing credential's verified secret and updated record; no enrollment or fallback |
+| `check()` | Prompt-free readiness to attempt; no PRF or key-presence guarantee. |
+| `create(label:, cancellation:)` | Register a new credential and verify two matching secret evaluations. |
+| `unlock(record, cancellation:)` | Recover an existing credential's secret; never enroll or switch routes. |
+| `PasskeyResult.dispose()` | Clear the owned secret buffer; neither delete the credential nor persist its record. |
 
-Both secret operations return the same `PasskeyResult`. Its `secret` is a
-read-only byte view; `record` is opaque, nonsecret metadata with `toJson()` and
-`PasskeyRecord.fromJson()`. Dispose the result in `finally`, even if wrapping or
-persistence fails. Keypass clears its owned buffer; caller copies and derived
-keys remain the caller's responsibility. Integrity-protect records and persist
-advanced verification state transactionally.
+Both secret operations return a `PasskeyResult` containing a borrowed read-only
+`secret` and a new or updated `record`. Dispose it in `finally`. Caller copies,
+derived keys and provider/runtime allocations are outside that wipe guarantee.
+Records contain recovery and verification metadata, not the secret; keep them
+integrity-protected and commit updated verification state after successful use.
 
-**Always await secret-bearing operations.** Abandoning their Future or using
-`Future.timeout` alone does not cancel native work or dispose a late result.
-Cancel through `PasskeyCancellation`, await settlement, and dispose any result
-that succeeded. `check()` is optional: it reserves nothing, may throw `busy`,
-and cannot guarantee a credential's PRF support.
+Always await secret-bearing operations. `Future.timeout` alone does not cancel
+native work or dispose a late result. Use `PasskeyCancellation`, await settlement,
+and dispose any successful result. Readiness checks reserve nothing and may
+report `busy`. See [ownership and cancellation](native/OWNERSHIP.md).
 
-See the **[consumer SDK guide](doc/sdk.md)** for both routes, hardware callbacks,
-cancellation, ownership and complete persistence responsibilities. Applications
-own encryption, storage, synchronization and recovery policy.
+## Platform setup and evidence
 
-System-provider RP IDs are app-associated domains, not API endpoints. Apple and
-Android still require domain association, signing and native host integration.
-Native packaging is currently manual; adding the Dart dependency does not
-configure an app host. Keypass requires no Keypass-operated runtime website,
-API, relay or account service; see the
-[runtime independence constraint](doc/implementation-plan.md#runtime-independence-constraint).
-
-Desktop CLIs target direct physical-key access. USB and phone NFC are in scope;
-no browser helper or extension is required by the accepted product plan.
-The [standalone browser probe](doc/browser-probe.md) remains separate research
-and is not wired into the public API.
-
-| Target | Planned integration | Current implementation |
+| Route | Integration | Recorded evidence and remaining limits |
 | --- | --- | --- |
-| Signed macOS apps / iOS | OS providers plus physical keys | Apple provider adapter; macOS normal-client and iPhone diagnostic-host enrollment/restart/cancel-retry verified; macOS USB enrollment/restart also verified with a physical YubiKey; iPhone NFC recovered the Mac-created marker with the same key |
-| Android | OS providers plus USB/NFC physical keys | Credential Manager AAR/JNI and emulator smoke; generic USB/NFC hardware module; Pixel 6a NFC decrypted the Mac-created marker with the same key in the debug demo; real provider, USB and broader qualification pending |
-| Windows | Native providers and physical keys | WebAuthn adapter cross-compiled; runtime and physical-key access unqualified |
-| Linux / desktop CLIs | Direct physical FIDO2 keys | libfido2 USB adapter and standalone Dart CLI implemented on macOS/Linux; other hardware adapters pending |
+| macOS / iOS system | Apple native library, signed app, associated domain/AASA, active window/scene | macOS ordinary-client enrollment, restart and cancel/retry; iPhone diagnostic-host equivalents. Broader provider/lifecycle and undecorated iOS-path qualification remain open. |
+| Android system | Credential Manager AAR/JNI, signing/Digital Asset Links, foreground Activity | Emulator host smoke; physical OS-provider qualification deferred. |
+| macOS / Linux hardware | USB adapter built by Dart hooks; OS device permissions | macOS YubiKey enrollment and fresh-process decryption. Linux builds/tests do not qualify a physical Linux key session. |
+| iPhone hardware | Linked NFC adapter, NFC entitlement and foreground app | Mac-created credential decrypted over NFC; NFC enrollment and broader lifecycle checks remain open. Wired USB is unimplemented. |
+| Android hardware | USB/NFC AAR, permissions and foreground Activity | Pixel 6a debug app decrypted the Mac-created marker over NFC. USB, restart and production packaging qualification remain open. |
+| Windows | Native WebAuthn adapter | Build evidence only; runtime and direct hardware remain unqualified. |
 
-These are targets, not supported-platform claims. Provider PRF support and
-cross-device behavior must be tested for each supported path.
+See [platform setup](doc/platforms.md) for host requirements and
+[validation receipts](doc/validation.md) for the exact devices, builds and
+limitations. Hardware eligibility is capability-based, without vendor allowlists;
+observations on one YubiKey do not qualify every FIDO2 key.
 
-Try the [interactive platform demos](doc/demo.md), or see the [implementation plan](doc/implementation-plan.md),
-[native backend contract](doc/backend-contract.md),
-[consumer SDK](doc/sdk.md), [platform setup](doc/platforms.md), and
-[Keybay integration](doc/keybay-integration.md).
+Desktop macOS/Linux USB libraries are built and bundled automatically through
+[Dart build hooks](doc/build-hooks.md). Build hosts need the documented native
+toolchain/development libraries; distributable CLIs must retain the whole native
+bundle. OS-provider and mobile hosts still require explicit native linking,
+signing, permissions and lifecycle setup. Adding a Pub dependency or entitlement
+alone does not configure those hosts. Flutter is used only for test apps.
 
-## Development
+The [browser probe](doc/browser-probe.md) is retained research, outside the public
+SDK. Browser-assisted CLI delivery is deferred. Keypass does not silently fall
+back between system, hardware and browser routes.
+
+## Review and development
+
+Start an external review with the [review guide](doc/external-review.md) and
+[security policy](SECURITY.md). They identify the source baseline, published
+package, trust boundaries, code map, evidence and outstanding work. Historical
+research and dated receipts are not current API specifications. The
+[implementation plan](doc/implementation-plan.md) tracks remaining work.
+
+With Dart 3.11+, Node 22+ and the [native build prerequisites](doc/build-hooks.md):
 
 ```sh
-dart pub get
-dart format --output=none --set-exit-if-changed lib test example tool demo/provider_app/lib/store.dart
+dart pub get --enforce-lockfile
+dart format --output=none --set-exit-if-changed lib test example tool hook demo/provider_app/lib/store.dart
 dart analyze --fatal-infos
 dart test
 node --test test/browser/ceremony.test.mjs test/browser/failure.test.mjs test/browser/gesture.test.mjs test/browser/deadline.test.mjs
 dart run example/keypass_example.dart
 ```
 
-Development tests require Node 22+ for WebCrypto interoperability. The SDK has
-no Node or Flutter runtime dependency. Tests cover synthetic core lifecycle,
-signed synthetic browser assertions and encrypted bridge failures. They do not
-establish real provider, native UI, device, sync, offline or vault qualification.
-
-Linux validation can also run in an isolated container:
-
-```sh
-docker build -f tool/validation/Dockerfile -t keypass-validation .
-docker run --rm --network none keypass-validation
-```
-
-The build runs analysis, tests and AOT compilation. The final command only checks
-CLI startup/help; it does not exercise a Linux desktop passkey provider. Docker
-context exclusions keep local bindings and build/cache directories out of the image.
-
-Desktop hardware consumers use [Dart build hooks](doc/build-hooks.md) for automatic
-native compilation and loading. The public SDK API is unchanged.
+These checks use synthetic fixtures and native packaging probes; they do not
+perform an attended key ceremony. Native CI lanes are defined in
+[check.yml](.github/workflows/check.yml). Use the [demo guide](doc/demo.md) for
+explicit physical-provider tests with disposable data. MIT licensed.

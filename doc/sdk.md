@@ -30,8 +30,11 @@ and connection selection before returning.
 
 `rpId` is the stable relying-party identifier that scopes credentials:
 
-- `Keypass.system` uses OS passkey providers and their dialogs. Use your
-  associated domain and complete the platform's app/domain setup.
+- `Keypass.system` uses OS passkey providers and their dialogs. On Apple/Android,
+  use your associated domain and complete app/domain setup. The experimental
+  Windows adapter instead uses the caller-configured RP ID without equivalent
+  association enforcement; origin consistency does not identify the executable.
+  See [Windows setup](../native/windows/README.md).
 - `Keypass.hardware` talks directly to physical FIDO2 keys. Use a stable
   DNS-shaped identifier shared by your app and CLI, such as `dev.example.vault`.
   It requires no hosted website or domain association. It does not authenticate
@@ -154,8 +157,8 @@ it decrypts using the **original** saved JSON, then re-encrypts using the advanc
 record. See its [complete store example](../demo/provider_app/lib/store.dart).
 
 The current serializer retains the development v2 system and v3 hardware record
-encodings, including legacy wire field names. This unpublished package's storage
-format is not yet frozen. Unlock never enrolls, replaces, discovers arbitrary
+encodings, including retained wire field names. The package is published as a
+prerelease; its storage format is not yet frozen. Unlock never enrolls, replaces, discovers arbitrary
 credentials, or changes access routes. Applications choose the saved method first.
 
 ## Cancellation and ownership
@@ -198,5 +201,5 @@ provider responses, PINs or PRF output.
 Keypass owns credential creation, verified secret recovery, native interaction
 and temporary-result cleanup. Keybay owns purpose-bound derivation, encrypted
 key envelopes, authenticated method metadata, mandatory platform protection,
-atomic method changes, rotation and recovery. A working Keypass demo is not a
-Keybay integration claim. See the [integration target](keybay-integration.md).
+atomic method changes, rotation and recovery. Keybay 0.2.0 consumes the published Keypass prerelease. See the
+[implemented integration](keybay-integration.md) and its separate release evidence.

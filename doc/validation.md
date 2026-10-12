@@ -1,4 +1,12 @@
-# Bootstrap validation — 2026-09-28
+# Validation receipts
+
+This is a chronological evidence log. A pending result in an older entry may be
+resolved by a later dated receipt; neither entry qualifies different code,
+providers or devices. Start with the [current review guide](external-review.md)
+and [platform matrix](platforms.md). Research formats and API spellings in old
+receipts are historical, not current integration instructions.
+
+## Bootstrap validation — 2026-09-28
 
 Local host: macOS 26.2 (25C56), arm64. Dart 3.12.2. Apple Swift 6.3.3.
 
