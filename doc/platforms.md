@@ -1,122 +1,64 @@
-# Platform integration and consumer setup
+# Platform integration
 
-The portable abstraction is credential creation plus verified PRF recovery.
-The [consumer SDK guide](sdk.md) owns the Dart API contract.
-The [implementation plan](implementation-plan.md#accepted-scope--2026-09-29)
-owns accepted scope: native OS providers plus physical FIDO2 keys, with hardware
-access for desktop CLIs. Browser/extension delivery is deferred.
-
-Existing Apple/Android/Windows provider adapters remain experimental. The
-tested macOS release host has verified normal-constructor enrollment, restart
-decryption and cancellation/retry. A physical iPhone passed those core checks
-with a diagnostic wrapper. Broader lifecycle/provider coverage remains open;
-Android real-provider and Windows runtime checks remain outstanding. A libfido2 USB hardware adapter is implemented for macOS/Linux;
-the iPhone NFC adapter recovered the Mac-created marker with the same physical
-key. Broader NFC lifecycle/device qualification remains open. Android USB/NFC
-implementation builds and passes native tests; a Pixel 6a / Android 16 debug
-consumer decrypted the Mac-created marker over NFC with the same key. Android
-USB, restart and broader lifecycle/packaging qualification remain pending.
-Wired iPhone USB and Windows hardware remain pending. The shared [provider demo](../demo/provider_app/README.md)
-uses Flutter solely as the native-app test embedder, with the standalone SDK
-accessed through FFI. Exact executed proof lives in [validation](validation.md).
+Native setup is required alongside the Dart dependency. The SDK has no Flutter
+plugin or Keypass service. See [SDK usage](sdk.md) for the Dart API.
 
 ## Target matrix
 
-Rows describe integration targets, including unimplemented Windows hardware and
-iPhone USB work. They are not blanket support claims. PRF and user verification
-must be supported by the selected provider or physical credential.
-
-| Host | OS-provider route | Physical-key route and setup |
+| Host | System route | Direct hardware route |
 | --- | --- | --- |
-| Signed macOS app | AuthenticationServices; signing, associated-domain entitlement and AASA | USB through direct adapter; an OS-mediated route follows Apple's API requirements |
-| iOS/iPadOS app | AuthenticationServices; signing, AASA and active UIKit scene | iPhone NFC adapter; native SDK/entitlements and device qualification. Wired USB is unimplemented |
-| Android app | Credential Manager; Digital Asset Links with app signing fingerprints and Activity bootstrap | Generic Android USB HID/NFC plus YubiKit CTAP; AAR, device permissions, foreground Activity and app PIN UI; no domain association |
-| Windows app | Existing WebAuthn adapter; app-owned window and qualified provider/OS PRF | Qualify OS-mediated security-key access and normal-user deployment |
-| Desktop CLI on macOS/Linux/Windows | Not a release requirement; no browser helper or extension required | Physical FIDO2 key, native library packaging, stable namespace and an interactive verification flow |
-| Linux desktop app | No qualified OS-provider backend | Direct physical key, device permissions and native packaging |
+| macOS | Signed app, native library, AASA and active window | USB via Dart build hooks |
+| iOS/iPadOS | Signed app, native library, AASA and active scene | iPhone NFC adapter; wired USB unimplemented |
+| Android | Credential Manager AAR/JNI, Digital Asset Links and Activity | USB/NFC AAR, device permissions and Activity |
+| Linux | No backend | USB via Dart build hooks and device permissions |
+| Windows | Experimental WebAuthn DLL and owner window | Direct adapter unimplemented |
 
-USB is the desktop baseline. NFC on computers requires a separately supported
-external reader; phone NFC support does not imply arbitrary reader compatibility.
-A YubiKey Bio is a fingerprint-capable USB model, not an NFC model. Actual
-hardware capability checks take precedence over a brand label.
-
-The same hardware credential should work across supported hosts/transports when
-its identity, PRF input normalization and verification policy remain consistent.
-This is a qualification target. Creating another credential on another key or in
-a provider produces a separate unlock method. Credential portability does not
-establish Keybay vault portability.
+Physical evidence covers the recorded macOS provider flow, diagnostic iPhone
+provider flow, one YubiKey over macOS USB, and recovery of that credential over
+phone NFC. Android OS-provider and Windows runtime remain unqualified. See the
+[review evidence matrix](external-review.md#evidence-and-open-work) for precise
+coverage and gaps; the [receipt log](validation.md) retains device/build details.
 
 ## OS-provider setup
 
-- [Apple package, signing, AASA and host setup](../native/apple/README.md)
-- [Android AAR, Digital Asset Links and automatic bootstrap](../native/android/README.md)
-- [Windows DLL and owner-window rules](../native/windows/README.md)
+- [Apple](../native/apple/README.md): link the library, configure signing and
+  `webcredentials`/AASA, and provide an active AppKit window or UIKit scene.
+- [Android](../native/android/README.md): link the AAR/JNI bridge, configure
+  credential-sharing Digital Asset Links with signing fingerprints, and provide
+  a foreground Activity. URL App Links alone are insufficient.
+- [Windows](../native/windows/README.md): package the DLL and provide an owner
+  window. The configured RP/client origin does not prove website ownership or
+  authenticate the executable; there is no Apple/Android-style association check.
 
-AASA's webcredentials association and Android's credential-sharing Digital Asset
-Links are consumer-owned public metadata. Android URL App Links alone are not
-the credential-sharing contract. There are no Keypass API keys or accounts; see
-the [runtime independence constraint](implementation-plan.md#runtime-independence-constraint).
-
-Construct `Keypass.system(rpId: 'vault.example.com', displayName: 'Example App')`
-once and reuse it. The RP ID is explicit and stable; display name defaults to
-that identifier. Keypass does not read runtime pubspec files, environment
-variables or infer a domain from associated domains. OS-provider libraries remain linked by the app packager. Desktop USB
-libraries are prepared by [Dart build hooks](build-hooks.md) during run/test/build;
-`dart pub get` alone does not build native libraries. The same `check/create/unlock` contract applies to direct hardware through
-`Keypass.hardware(rpId: 'vault.example.com')`. Results own temporary secrets and
-must be disposed; clients need no disposal. The same RP ID can be used by both
-routes; this does not make separately created credentials interchangeable.
-
-Apple requires a presentation anchor, Android a foreground Activity and Windows
-an owner window. Existing adapters resolve unambiguous hosts automatically.
-Custom embedders may need one native registration callback; ordinary Dart calls
-should not take per-operation host handles. Windows has no Apple/Android-style
-app/domain association: its configured RP and constructed client origin do not
-authenticate the executable or prove website control. Entitlements alone do not provide
-the native library or UI lifecycle.
+Adapters discover unambiguous hosts automatically; custom embedders may need
+native registration. Entitlements alone do not link libraries or provide UI
+lifecycle handling. RP IDs remain explicit, stable client configuration.
 
 ## Hardware setup
 
-The macOS/Linux USB slice uses `Keypass.hardware(rpId:, requestPin:,
-selectConnection:, onEvent:)`. See its [build and consumer instructions](../native/hardware/README.md).
-The [iPhone NFC adapter](../native/hardware_apple/README.md) uses the same API,
-standard FIDO CTAP and capability checks, without vendor-ID filters. It needs
-NFC signing/entitlements and PIN UI, but no domain association. `check()`
-identifies a ready reader; only a ceremony checks a key.
-The [Android USB/NFC adapter](../native/hardware_android/README.md) uses platform
-device APIs and the SDK's FIDO protocol layer. Its AAR starts automatically through
-AndroidX Startup; USB access needs OS permission and NFC uses in-app reader mode.
-It shares the hardware namespace and PIN/selection callbacks, without Digital
-Asset Links or a website. Mobile native packaging remains explicit; desktop
-USB uses the [build hook](build-hooks.md).
-The remaining adapters and acceptance gates live in
-[the hardware milestone](implementation-plan.md#2-add-the-hardware-route).
-Direct SDK/CTAP access does not require hosting an RP website. Its stable
-namespace is not authentication of the local executable. OS-mediated device
-access follows the OS API's separate identity/presentation requirements.
+- [Desktop USB](../native/hardware/README.md): [build hooks](build-hooks.md) prepare
+  libraries during `dart run/test/build`, not `pub get`. Build hosts need native
+  development dependencies; distribute the whole resulting bundle.
+- [iPhone NFC](../native/hardware_apple/README.md): link the adapter and configure
+  NFC signing, entitlements and usage description. No NFC simulator qualification.
+- [Android USB/NFC](../native/hardware_android/README.md): link the AAR, obtain USB
+  permission or use foreground NFC reader mode; Startup handles bootstrap.
 
-Package native dependencies, request necessary device/NFC permissions, and expose
-safe PIN/touch/cancellation prompts. Capability detection must not weaken the
-verification policy or silently replace the credential. NFC read loss and USB
-removal should produce a bounded retry/error without changing enrollment.
-
-Keypass owns the credential/PRF interaction and returns a temporary result plus
-an opaque recovery record. The consumer owns key derivation context, encrypted
-envelopes, record integrity, transactional updates and recovery policy.
-Do not add a general-purpose YubiKey management surface to the public API.
-
-## Historical browser proof
-
-The [standalone browser probe](browser-probe.md) remains available for research.
-It proved Google Password Manager PRF equality across separate JIT/AOT processes
-on macOS localhost. It is not wired into the public API and is no longer the
-selected CLI delivery route. The [CLI investigation](research/2026-09-29-cli-passkey-access.md)
-records the earlier alternatives, not current implementation commitments.
+Provide PIN/selection/cancellation UI where needed. Direct CTAP needs no website,
+AASA or Digital Asset Links, but its RP namespace does not authenticate the caller.
+Eligibility is capability-based, without vendor allowlists. Desktop NFC readers,
+other key vendors/firmware and additional transports need separate qualification.
+A phone NFC success does not establish desktop-reader or wired-phone support.
 
 ## Provider behavior
 
-OS dialogs select the provider and verification method. Do not promise
-fingerprint-only access or portable provider-name selectors. A passkey may be
-synced or device-bound. Sync alone is not proof of PRF equality, cross-provider
-interchange or offline access. Losing every enrolled credential requires a
-separately configured recovery method in the consuming application.
+OS dialogs choose the provider and verification method; fingerprint-only access
+is not promised. Sync does not guarantee PRF continuity, provider interchange or
+offline access. A portable hardware credential does not make a Keybay vault
+portable: its platform root remains required.
+
+## Historical browser proof
+
+The [browser probe](browser-probe.md) is separate research, not a public backend.
+Browser/extension CLI delivery is deferred. Remaining work is in the
+[roadmap](implementation-plan.md).

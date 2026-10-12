@@ -1,88 +1,60 @@
 # Consumer SDK
 
-Keypass obtains verified, repeatable passkey-derived material for a consumer's
-encryption scheme. The public import is `package:keypass/keypass.dart`.
-It has no Flutter dependency. [Platform setup](platforms.md) covers native
-packaging, signing, permissions and domain associations; this page owns the Dart
-API contract.
+Import `package:keypass/keypass.dart`. Your app owns encryption and persistence;
+Keypass owns credential interaction and verified PRF recovery.
+[Platform setup](platforms.md) covers native integration.
 
 ## Configure the access route once
 
 ```dart
-final passkeys = Keypass.system(
-  rpId: 'vault.example.com',
-  displayName: 'Example App',
-);
-
-final securityKeys = Keypass.hardware(
-  rpId: 'vault.example.com',
-  displayName: 'Example App',
+final passkeys = Keypass.system(rpId: 'vault.example.com');
+final hardware = Keypass.hardware(
+  rpId: 'dev.example.vault',
   requestPin: ui.requestPin,
   selectConnection: ui.selectConnection,
   onEvent: ui.onHardwareEvent,
 );
 ```
 
-Both constructors return the same `Keypass` interface. Construction opens no
-device or dialog. Clients contain configuration and can be reused; there is no
-client `dispose()`. Each operation acquires and releases its own native backend
-and connection selection before returning.
+Construction opens no dialog or device. Clients are reusable configuration and
+need no disposal; each operation acquires its own backend.
 
-`rpId` is the stable relying-party identifier that scopes credentials:
+`rpId` is a stable credential namespace, with many records per RP. A saved record
+requires its original route and RP; mismatches fail before device access.
+`displayName` is optional presentation text, defaulting to the RP ID.
 
-- `Keypass.system` uses OS passkey providers and their dialogs. On Apple/Android,
-  use your associated domain and complete app/domain setup. The experimental
-  Windows adapter instead uses the caller-configured RP ID without equivalent
-  association enforcement; origin consistency does not identify the executable.
-  See [Windows setup](../native/windows/README.md).
-- `Keypass.hardware` talks directly to physical FIDO2 keys. Use a stable
-  DNS-shaped identifier shared by your app and CLI, such as `dev.example.vault`.
-  It requires no hosted website or domain association. It does not authenticate
-  the requesting executable.
+- **System:** OS providers own the dialog and verification. Apple/Android require
+  an associated domain. Windows has no equivalent association enforcement;
+  its configured origin does not identify the executable.
+- **Hardware:** use a stable DNS-shaped namespace shared by your app/CLI.
+  No website is required, but the namespace does not authenticate the caller.
 
-The same RP ID can be used for both routes, as above. This does not make
-separately created credentials interchangeable. A record can only be unlocked
-through a client with its original route and RP ID; a mismatch fails before device
-access. Existing credentials with different RP IDs retain their original IDs.
-Do not derive the RP ID from a changing package name, app label or build flavor.
-Display name is presentation text and defaults to the RP ID. There are no Keypass
-API keys, accounts, or implicit pubspec/environment configuration.
+Using the same RP for both routes does not make separate credentials interchangeable.
+There are no Keypass API keys or inferred pubspec/environment defaults.
 
-`ui` above is the consuming application's UI, not an SDK object. Hardware
-handlers are optional parameters with explicit behavior:
+`ui` above is your application. Hardware callbacks are optional:
 
-| Handler | Contract when supplied | When omitted |
+| Callback | Return/behavior | If omitted |
 | --- | --- | --- |
-| `requestPin` | Receive `HardwarePinRequest` and cancellation; return owned writable UTF-8 bytes, or `null` to cancel. Keypass clears the returned bytes. | A key requiring application PIN entry fails with `pinRequired`. |
-| `selectConnection` | Receive the offered `HardwareConnection` objects and cancellation; return one of those exact objects, or `null`. | One connection is selected automatically; multiple choices fail with `deviceSelectionRequired`. |
-| `onEvent` | Show informational `touchRequired` or `presentKey` instructions. | No application progress callback. |
+| `requestPin` | Receive `HardwarePinRequest` and cancellation; return owned writable UTF-8 bytes, or `null` to cancel. Keypass clears returned bytes. | Keys needing application PIN input fail with `pinRequired`. |
+| `selectConnection` | Return an exact offered `HardwareConnection`, or `null` to cancel. | One connection is automatic; several fail with `deviceSelectionRequired`. |
+| `onEvent` | Show `touchRequired` or `presentKey` guidance. | No application progress callback. |
 
-A connection is a USB candidate or NFC reader, not an enrolled credential.
-Its optional `transport` is a hint; a ready NFC reader does not prove a key is
-present. Never retain a selected object for a later operation. Close selection
-and PIN dialogs on the supplied cancellation signal. Keypass does not automatically
-retry PINs, reset keys, or silently substitute another credential.
-
-OS provider dialogs own provider selection and user verification. The system
-constructor takes no PIN or biometric hooks, and Keypass does not read biometric
-data.
+Connections are operation-local USB candidates or NFC readers, not credentials.
+Do not reuse one later. Transport hints and a ready reader do not prove key
+presence. Close PIN/selection UI on cancellation. PINs are never retried automatically.
 
 ## Check readiness without prompting
 
 ```dart
 final readiness = await passkeys.check();
 if (!readiness.canAttempt) {
-  // Present readiness.reason to explain why access cannot be attempted.
+  // Explain readiness.reason in your UI.
 }
 ```
 
-`PasskeyReadiness` answers whether the configured host can attempt an operation.
-It does not promise that a selected credential/provider supports PRF or that a
-physical key is currently present. Calls still enforce readiness and capability
-requirements internally. Readiness is optional and reserves no native operation
-or device. It can throw
-`busy` if another operation is active. It is a UI aid, not a prerequisite or
-authorization.
+Optional and prompt-free. It reserves nothing, may throw `busy`, and cannot prove
+PRF support or device presence. Operations enforce their own capability checks.
 
 ## Create and use a result
 
@@ -90,116 +62,86 @@ authorization.
 final created = await passkeys.create(label: 'Personal vault');
 try {
   // Derive a purpose-bound wrapping key from created.secret.
-  // Atomically persist created.record.toJson() with an authenticated envelope.
-  // Clear application-owned derived keys and plaintext in their own finally.
+  // Atomically save created.record.toJson() with an authenticated envelope.
 } finally {
   created.dispose();
 }
 ```
 
-Encryption and persistence are application responsibilities. The comments above
-mark that work; they are not a complete encryption implementation. See the
-[executable encrypted-marker example](../demo/provider_app/lib/store.dart).
-Creation registers a credential and verifies two matching PRF evaluations with
-fresh challenges. Keypass generates and retains the original public PRF input.
-A failed operation after registration may leave a credential in the provider;
-no successful encryption method has been committed unless the application saves
-its record and envelope.
+Creation registers a credential, generates its public PRF input and verifies two
+matching evaluations with fresh challenges. Failure after registration can leave
+a provider credential behind; your method is usable only after record/envelope commit.
 
 Both `create` and `unlock` return `PasskeyResult`:
 
-- `secret`: a borrowed, read-only 32-byte view for the application's
-  purpose-bound KDF. It is input key material, not a complete encryption format.
-- `record`: the new or updated opaque recovery metadata.
-- `dispose()`: synchronous, idempotent clearing of the result's owned secret
-  buffer. It neither removes the passkey nor saves the record.
+| Member | Meaning |
+| --- | --- |
+| `secret` | Borrowed read-only 32-byte input for your KDF. |
+| `record` | New or updated opaque recovery/verification metadata. |
+| `dispose()` | Synchronously and idempotently clears the owned secret buffer. |
 
-Always dispose the result in `finally`, including when derivation or storage
-fails. After disposal, the secret getter throws and earlier borrowed views
-observe zeros. Caller copies and derived keys require their own cleanup; Dart,
-OS and provider allocations prevent a promise of complete memory erasure.
+Dispose in `finally`. Afterwards the getter throws and borrowed views see zeros.
+Copies, derived keys, plaintext and provider/VM allocations need separate cleanup;
+complete memory erasure is not guaranteed. Disposal neither saves the record nor
+deletes the passkey. The sketches omit your encryption implementation; see the
+[executable marker example](../demo/provider_app/lib/store.dart).
 
 ## Unlock a saved record
 
 ```dart
-// savedRecordJson is the record persisted by the consuming application.
 final record = PasskeyRecord.fromJson(savedRecordJson);
-
 final opened = await passkeys.unlock(record);
 try {
-  // Derive wrapping material from opened.secret.
-  // Authenticate saved metadata and decrypt the ORIGINAL saved envelope.
-  // Atomically persist opened.record.toJson() before publishing a session.
-  // Clear application-owned derived keys and plaintext on every path.
+  // Authenticate metadata and decrypt the ORIGINAL saved envelope.
+  // Atomically persist opened.record.toJson() before exposing a session.
 } finally {
   opened.dispose();
 }
 ```
 
-The application must authenticate its stored method metadata and successfully
-decrypt before committing the updated record or returning a usable session.
-The application's persistence operation must provide the required
-transaction/concurrency semantics; the sketch does not supply a vault
-implementation. Application-owned plaintext or session keys must also be cleared
-if a later commit fails.
+Unlock never enrolls or discovers an arbitrary replacement. Select your saved
+method first. The record exposes `id`, `rpId`, `route`, `toJson()` and `fromJson()`;
+preserve the entire value. Decoding checks structure, not authenticity.
 
-`PasskeyRecord` exposes `id`, `rpId`, `route`,
-`toJson()` and `fromJson()`. Keypass owns the schema, PRF input and
-verification state. Decoding validates structure, not authenticity. Preserve the
-whole record and integrity-protect it with the corresponding method directory.
-Persist the result's updated record after each successful unlock.
+Your transaction must authenticate metadata and decrypt successfully before
+committing the updated record. Handle concurrent updates and clear provisional
+plaintext/session keys if commit fails. `record.id` stays stable across counter,
+backup-state and USB/NFC changes. Use stable context for wrapping-key derivation
+and AAD; mutable record bytes are not immutable identity. The marker example
+uses the old record as AAD to decrypt, then re-encrypts with the updated record.
 
-`record.id` stays stable across verification-state updates and USB/NFC
-transport changes. Use a reviewed stable identity/context for key-wrapper AAD
-and purpose binding; do not accidentally use mutable record bytes as immutable
-AAD. The qualification demo intentionally authenticates its entire saved record:
-it decrypts using the **original** saved JSON, then re-encrypts using the advanced
-record. See its [complete store example](../demo/provider_app/lib/store.dart).
-
-The current serializer retains the development v2 system and v3 hardware record
-encodings, including retained wire field names. The package is published as a
-prerelease; its storage format is not yet frozen. Unlock never enrolls, replaces, discovers arbitrary
-credentials, or changes access routes. Applications choose the saved method first.
+Current records use v2 for system and v3 for hardware; the prerelease format is
+not frozen. See [security](../SECURITY.md) for rollback and recovery limits.
 
 ## Cancellation and ownership
 
-**Do not abandon a secret-bearing Future.** `Future.timeout` only stops waiting;
-it does not cancel the underlying operation or clear a result that completes
-later. Cancel the supplied `PasskeyCancellation`, await the original Future's
-settlement, and dispose any successful result. Keep this cleanup running even
-when the initiating UI closes. A timer may request cancellation; it must not
-replace awaiting the operation.
-
 ```dart
 final cancellation = PasskeyCancellation();
-final pending = securityKeys.unlock(
-  record,
-  cancellation: cancellation,
-);
-// Connect a Cancel control to cancellation.cancel().
+final pending = passkeys.unlock(record, cancellation: cancellation);
+// Connect Cancel to cancellation.cancel().
 final result = await pending;
 try {
-  // Use result.secret and result.record in the consumer's encryption flow.
+  // Use result.secret and commit result.record.
 } finally {
   result.dispose();
 }
 ```
 
-Use a new cancellation signal per operation. An overlapping operation fails with
-`busy` rather than replacing or silently queueing another operation. Native
-work is drained before success transfers ownership of a result. Later
-cancellation cannot revoke a result already returned to the caller. The
-application controls its subsequent encryption and persistence transaction.
+Use a fresh signal per operation. Cancel, await the original Future and dispose
+any successful result, even if the initiating screen closes. `Future.timeout`
+alone abandons waiting; it neither cancels work nor clears a late secret.
 
-Errors expose stable redacted `PasskeyException.code` values. Missing host
-libraries, missing presentation hosts, unsupported PRF, cancellation and failed
-verification remain distinct. Neither errors nor progress events carry raw
-provider responses, PINs or PRF output.
+Overlapping work fails with `busy`. Native cleanup precedes success handoff;
+cancellation cannot revoke a returned result or undo your subsequent storage
+transaction. [Native ownership](../native/OWNERSHIP.md) defines late-callback and
+provider-stall behavior.
+
+Catch `PasskeyException.code`: backend/host absence, unsupported PRF, cancellation
+and verification failure are distinct redacted errors. Errors/events contain no
+raw provider responses, PINs or PRF output.
 
 ## Boundary with Keybay
 
-Keypass owns credential creation, verified secret recovery, native interaction
-and temporary-result cleanup. Keybay owns purpose-bound derivation, encrypted
-key envelopes, authenticated method metadata, mandatory platform protection,
-atomic method changes, rotation and recovery. Keybay 0.2.0 consumes the published Keypass prerelease. See the
-[implemented integration](keybay-integration.md) and its separate release evidence.
+[Keybay](keybay-integration.md) owns derivation, envelopes, authenticated metadata,
+platform protection, rotation and atomic storage. It consumes and disposes Keypass
+results internally; Keybay applications do not manage these results or records.
