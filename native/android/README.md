@@ -34,7 +34,7 @@ Configure the Dart client's domain and publish the association at
 Use the app signing certificate, including Play App Signing for Play releases.
 Authorize debug fingerprints only for a deliberate development association.
 No API key is needed. A usable provider and screen lock are runtime requirements;
-Android version or `availability().canAttempt` alone does not prove PRF support.
+Android version or `check().canAttempt` alone does not prove PRF support.
 
 ```sh
 cd native/android

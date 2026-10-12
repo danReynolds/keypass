@@ -4,8 +4,8 @@
 profile. The browser probe sends public ceremony evidence across its paired
 channel and the CLI verifies it before processing or persisting the separate
 PRF result. Native Apple/Android/Windows adapters now use the same verifier
-before exposing their separate binary PRF output. The public browser backend
-remains unconnected.
+before exposing their separate binary PRF output. There is no public browser
+backend; the probe is separate research.
 
 ## Supported profile
 
@@ -66,14 +66,16 @@ Tests cover valid registration/assertions, changed signatures/keys/IDs, signed
 wrong contexts and flags, counter behavior, malformed encodings, every truncated
 registration prefix, hostile nesting, duplicate keys and saved-binding reuse.
 The HTTP tests also carry the evidence across the real encrypted loopback bridge,
-then corrupt public evidence after browser verification to ensure Dart rejects it.
+then corrupt collected public evidence before Dart verification to ensure rejection.
 Synthetic PRF values are used for these automated tests, never provider secrets.
 
-A real-provider saved-credential run passed both Dart assertion checks and
-decrypted the earlier process's encrypted marker; see [validation receipts](validation.md).
-It reused a legacy SPKI binding, so raw registration verification still needs a
-real-provider run. Persisted state continuity is covered with independent signed fixtures.
-Real native-provider continuity and independent security review remain pending.
+The early browser proof used a retired SPKI record. Current source rejects that
+record and uses the common verifier with persisted state; the old browser receipt
+does not qualify the cleaned-up probe. Later native macOS and diagnostic iPhone
+receipts record enrollment and fresh-process decryption; see the
+[current evidence index](external-review.md#evidence-and-open-work).
+Independent signed fixtures cover persisted-state continuity. Broader native
+provider/device qualification and an external human review remain open.
 
 References: [WebAuthn registration](https://www.w3.org/TR/webauthn-3/#sctn-registering-a-new-credential),
 [assertion verification](https://www.w3.org/TR/webauthn-3/#sctn-verifying-assertion),
@@ -88,16 +90,17 @@ fabricated HTTPS origin. It reuses bounded COSE/CBOR parsing and ES256 assertion
 verification with the saved credential, RP hash, user handle, UP/UV and counter
 policy.
 
-Registration is accepted only after native libfido2 verifies its attestation
-signature against the requested challenge hash. Dart additionally requires
+Registration is accepted only after the native hardware adapter verifies its
+attestation signature against the requested challenge hash (libfido2 on desktop;
+the platform CTAP implementation on phones). Dart additionally requires
 signed `hmac-secret=true` and `credProtect=3` enrollment extensions. There is no
 manufacturer chain-validation or hardware-provenance claim. Hardware bindings
 must not be backup-eligible.
 
 Assertions require the signed hmac-secret encrypted-output extension (32 or 48
 bytes for a single output, depending on the PIN/UV protocol). The decrypted
-32-byte output comes from libfido2's matching CTAP session. The native library
-and process remain trusted to associate decrypted output with this evidence.
+32-byte output comes from the native adapter's matching CTAP session. The native
+library and process remain trusted to associate decrypted output with this evidence.
 The core then proves repeatability through two fresh verified assertions.
 
 Independent Node/OpenSSL fixtures cover the direct local hash, WebAuthn PRF salt

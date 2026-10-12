@@ -22,13 +22,14 @@ accessed through FFI. Exact executed proof lives in [validation](validation.md).
 
 ## Target matrix
 
-Every row is a target, not a blanket support claim. PRF and user verification
+Rows describe integration targets, including unimplemented Windows hardware and
+iPhone USB work. They are not blanket support claims. PRF and user verification
 must be supported by the selected provider or physical credential.
 
 | Host | OS-provider route | Physical-key route and setup |
 | --- | --- | --- |
 | Signed macOS app | AuthenticationServices; signing, associated-domain entitlement and AASA | USB through direct adapter; an OS-mediated route follows Apple's API requirements |
-| iOS/iPadOS app | AuthenticationServices; signing, AASA and active UIKit scene | Phone NFC and supported wired configurations; native SDK/entitlements and device qualification |
+| iOS/iPadOS app | AuthenticationServices; signing, AASA and active UIKit scene | iPhone NFC adapter; native SDK/entitlements and device qualification. Wired USB is unimplemented |
 | Android app | Credential Manager; Digital Asset Links with app signing fingerprints and Activity bootstrap | Generic Android USB HID/NFC plus YubiKit CTAP; AAR, device permissions, foreground Activity and app PIN UI; no domain association |
 | Windows app | Existing WebAuthn adapter; app-owned window and qualified provider/OS PRF | Qualify OS-mediated security-key access and normal-user deployment |
 | Desktop CLI on macOS/Linux/Windows | Not a release requirement; no browser helper or extension required | Physical FIDO2 key, native library packaging, stable namespace and an interactive verification flow |
@@ -69,7 +70,9 @@ routes; this does not make separately created credentials interchangeable.
 Apple requires a presentation anchor, Android a foreground Activity and Windows
 an owner window. Existing adapters resolve unambiguous hosts automatically.
 Custom embedders may need one native registration callback; ordinary Dart calls
-should not take per-operation host handles. Entitlements alone do not provide
+should not take per-operation host handles. Windows has no Apple/Android-style
+app/domain association: its configured RP and constructed client origin do not
+authenticate the executable or prove website control. Entitlements alone do not provide
 the native library or UI lifecycle.
 
 ## Hardware setup
@@ -84,7 +87,8 @@ The [Android USB/NFC adapter](../native/hardware_android/README.md) uses platfor
 device APIs and the SDK's FIDO protocol layer. Its AAR starts automatically through
 AndroidX Startup; USB access needs OS permission and NFC uses in-app reader mode.
 It shares the hardware namespace and PIN/selection callbacks, without Digital
-Asset Links or a website. Native packaging is currently manual.
+Asset Links or a website. Mobile native packaging remains explicit; desktop
+USB uses the [build hook](build-hooks.md).
 The remaining adapters and acceptance gates live in
 [the hardware milestone](implementation-plan.md#2-add-the-hardware-route).
 Direct SDK/CTAP access does not require hosting an RP website. Its stable

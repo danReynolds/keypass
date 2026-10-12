@@ -47,7 +47,7 @@ The demo retains AASA solely for its separate OS-provider screen.
 
 ## Interaction and lifetime
 
-`availability()` reports whether the host can attempt NFC. It never starts a
+`Keypass.check()` reports whether the host can attempt NFC. It never starts a
 scan or proves that a key is present. Discovery returns one virtual NFC reader.
 An explicit ceremony emits `HardwareEvent.presentKey` and opens the NFC sheet.
 

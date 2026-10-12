@@ -1,5 +1,9 @@
 # SDK consumer readiness review — 2026-10-02
 
+Historical review of its named source. Desktop hooks and Keybay integration
+subsequently shipped; current setup and remaining work are in the
+[review guide](../external-review.md). This report is not a human security audit.
+
 This change implements the agreed Dart consumer API. It prepares Keypass for a
 Keybay integration; it does not modify Keybay's store/envelope implementation or
 complete the platform release-qualification roadmap.

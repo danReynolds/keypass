@@ -1,5 +1,9 @@
 # Implementation plan
 
+Updated October 11, 2026. Keypass 0.1.0-dev.2 and Keybay 0.2.0 are published.
+Post-publication cleanup remains unreleased. The [review guide](external-review.md)
+identifies exact source/dependency baselines and the evidence reading order.
+
 ## Accepted scope — 2026-09-29
 
 Keypass is a Flutter-free Dart library for credential-bound encryption secrets.
@@ -19,7 +23,8 @@ allowlists. Other manufacturers need qualification before support is claimed.
 Both routes must return verified, repeatable PRF material. A passkey login or
 biometric-success boolean is insufficient. OTP, PIV and general security-key
 administration are outside scope. Keybay continues to own encryption envelopes,
-the platform root, storage, migration and recovery.
+the platform root, storage and recovery. Current Keybay source supplies no
+automatic migration; published 0.2.0 predates removal of retired V2 conversion.
 
 Browser-assisted CLI access and an extension/companion are deferred. Preserve
 the existing browser probe and its evidence as research; neither is a required
@@ -40,9 +45,10 @@ opaque records and explicitly disposed results. Backends and device selection
 belong to operations; no client session is opened. Callers provide the RP ID once,
 without ambient domain/namespace defaults. v2/v3 record bytes and inputs survive.
 
-This SDK completion does not complete Keybay envelope integration or broaden the
-physical platform qualification matrix. Manual native host packaging remains
-documented; automated native dependency distribution is a separate release task.
+Keybay envelope integration subsequently shipped in 0.2.0. Desktop macOS/Linux
+USB dependencies are built and bundled by Dart hooks in Keypass 0.1.0-dev.2.
+Mobile and OS-provider hosts still own native setup. These implementation and
+publication milestones do not broaden the physical qualification matrix.
 
 ## Runtime independence constraint
 
@@ -50,7 +56,9 @@ Enrollment, PRF evaluation and recovery must not depend on a Keypass-operated
 website, API, relay, account service, domain-association service or online app
 registry. Keypass ships software and its security updates.
 
-The OS-provider route uses the consumer's domain and required app associations.
+Apple/Android OS-provider routes use the consumer's domain and required app
+associations. Windows has no equivalent association enforcement and remains
+runtime-unqualified.
 The direct hardware route uses a stable credential namespace and native device
 access; no public hosting or domain verification service is required. A namespace
 is not proof of which local executable made the request. An OS-mediated hardware
@@ -213,7 +221,9 @@ No browser, Keypass endpoint or physical-key secret stored as a software fallbac
 
 ## 3. Consumer packaging and API completion
 
-- [ ] Package native dependencies for Dart JIT and distributed AOT consumers.
+- [x] Package desktop USB dependencies for Dart JIT and CLI AOT consumers with
+  [build hooks](build-hooks.md), including relocated-bundle tests.
+- [ ] Broaden packaged consumer qualification to remaining mobile/desktop hosts.
   App signing, Gradle dependencies and UI lifecycle remain packager concerns.
 - [x] Configure one explicit RP ID on the client, without runtime pubspec reads
   or a per-operation host handle. Direct hardware requires no live website.
@@ -228,23 +238,24 @@ No browser, Keypass endpoint or physical-key secret stored as a software fallbac
 
 ## 4. Keybay integration
 
-- [ ] Implement passkey requests through the existing credential/open/auth APIs;
-  callers should not need to construct a Keypass client themselves.
-- [ ] Review and implement the authenticated multi-method envelope format.
-  Provider passkeys, physical keys and passphrases are separate enrolled routes
-  unless an explicit policy requires multiple factors.
-- [ ] Preserve mandatory platform protection and passphrase behavior. Keypass
-  hardware support on Windows does not add a Windows platform root to Keybay.
-- [ ] Implement atomic add/replace/remove, interruption/concurrent-writer safety,
-  rotation, migration and old-client rejection. Enrollment failure preserves the
-  previous usable methods; revocation cannot invalidate already copied snapshots.
-- [ ] Prove recovery with a second hardware key or a separately enrolled
-  passphrase, and loss/deletion/reset of one credential.
-- [ ] Keep record get/set/list and authentication listing prompt-free.
+- [x] Ship passkey credentials through `open` and `auth.add`; consumers do not
+  construct Keypass clients. Credential-based open only authenticates.
+- [x] Implement the authenticated multi-method directory and HPKE envelopes,
+  preserving mandatory platform protection and alternative unlock methods.
+- [x] Implement atomic add/list/remove, key rotation, interruption/concurrency
+  handling and rejection of unsupported formats. No update/replace or automatic
+  migration in current Keybay source. Published 0.2.0 retains the retired V2
+  conversion path removed afterward. Failed enrollment preserves existing methods.
+- [x] Keep record operations and authentication listing prompt-free.
+- [ ] Broaden physical multi-key/recovery, loss, interruption and lifecycle
+  qualification. Tests and an attended installed CLI open do not close this matrix.
 
-[Keybay integration](keybay-integration.md) owns the detailed consumer boundary.
-A portable hardware credential does not itself make a host-bound Keybay vault
-portable or bypass its required platform root.
+[Keybay integration](keybay-integration.md) describes the implemented consumer
+boundary. Its [publication records](https://github.com/danReynolds/keybay/blob/main/doc/release-readiness.md)
+separate SDK/CLI release artifacts from source and device evidence. Portable
+hardware credentials do not bypass Keybay's required platform root or add a
+Windows platform protector. Current Keybay pins published Keypass 0.1.0-dev.2;
+new source cleanup requires a later package release and consumer dependency update.
 
 ## 5. Release qualification
 
@@ -256,8 +267,10 @@ portable or bypass its required platform root.
   attached keys, interrupted writes and cleanup of late native results.
 - [ ] Independent review of derivation, evidence validation, identity boundaries,
   memory limits and Keybay envelopes. Freeze formats after those findings.
-- [ ] Run real CI/release packaging on supported targets; current local build
-  receipts do not prove remotely executed CI or end-user installation.
+- [x] Run hosted CI and publish the prerelease; Keybay separately records its
+  signed CLI installation and attended hardware evidence.
+- [ ] Requalify changed source on the claimed physical configurations before
+  expanding support. Publication is not a substitute for those checks.
 
 ## Execution order
 
@@ -277,10 +290,10 @@ Build/test receipts and live outcomes are recorded in validation.md.
 Android provider verification is deferred while implementation proceeds. The
 same hardware credential has now recovered the marker over both phone NFC paths;
 broaden lifecycle/packaging qualification before freezing the binding/API contract.
-Complete native packaging and integrate
-Keybay after the shared contract and both routes have repeatable-secret evidence.
-Remaining provider/device checks, recovery testing and security review still
-precede supported-platform and release claims.
+Desktop native bundling and Keybay integration are complete. Next work is
+physical failure/recovery qualification, remaining platform packaging and
+external review. Keep source cleanup, published versions and observed device
+coverage separate; no new support claim follows from documentation cleanup.
 
 User interaction is required for PIN/biometric/touch approval and real phone/key
 tests. Do not inspect or automate provider UI while the user handles a prompt.
