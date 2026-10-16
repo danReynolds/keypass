@@ -27,8 +27,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      # Current Homebrew links libfido2 against OpenSSL 4; refresh so the
+      # runner's cached metadata cannot hide that path.
+      - if: runner.os == 'macOS'
+        run: brew update
       - if: runner.os != 'Windows'
         run: bash tool/install_hardware_build_deps.sh
+      - if: runner.os == 'macOS'
+        name: libfido2 links OpenSSL 4
+        run: otool -L "$(brew --prefix libfido2)/lib/libfido2.1.dylib" | grep 'libcrypto\.4\.dylib'
       - run: dart pub get --enforce-lockfile
       - run: dart format --output=none --set-exit-if-changed lib test example tool hook demo/provider_app/lib/store.dart
       - run: dart analyze --fatal-infos
@@ -101,9 +108,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - run: brew update
       - run: brew install libfido2 cmake pkgconf
         env:
           HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      - name: libfido2 links OpenSSL 4
+        run: otool -L "$(brew --prefix libfido2)/lib/libfido2.1.dylib" | grep 'libcrypto\.4\.dylib'
       - run: cmake -S native/hardware -B build/hardware -DCMAKE_BUILD_TYPE=Debug
       - run: cmake --build build/hardware -j4
       - run: ctest --test-dir build/hardware --output-on-failure
