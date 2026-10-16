@@ -11,10 +11,11 @@ import shutil
 import subprocess
 import sys
 
+# OpenSSL 3 or 4. The adapter and libfido2 must link the same one.
 MAC = (r"libkeypass_hardware\.dylib", r"libfido2\.1\.dylib",
-       r"libcrypto\.3\.dylib", r"libcbor\.[0-9.]+\.dylib")
+       r"libcrypto\.[34]\.dylib", r"libcbor\.[0-9.]+\.dylib")
 LINUX = (r"libkeypass_hardware\.so", r"libfido2\.so\.1",
-         r"libcrypto\.so\.3", r"libcbor\.so\.[0-9.]+")
+         r"libcrypto\.so\.[34]", r"libcbor\.so\.[0-9.]+")
 LINUX_SYSTEM = re.compile(r"^(lib(c|m|dl|rt|pthread|stdc\+\+|gcc_s|udev|z|zstd)\.so\.[0-9]+|ld-linux[^/]*\.so\.[0-9]+)$")
 
 
@@ -32,6 +33,18 @@ def dependencies(path: pathlib.Path, mac: bool) -> list[str]:
 def is_system(name: str, mac: bool) -> bool:
     return (name.startswith(("/usr/lib/", "/System/Library/")) if mac
             else bool(LINUX_SYSTEM.fullmatch(name)))
+
+
+def check_closure(names: set[str], patterns: tuple[str, ...]) -> None:
+    """Require exactly the adapter, libfido2, one libcrypto and libcbor."""
+    cryptos = sorted(name for name in names if name.startswith("libcrypto"))
+    if len(cryptos) > 1:
+        raise ValueError(
+            "the adapter and libfido2 link different OpenSSL libraries "
+            f"({', '.join(cryptos)}); use a libfido2 built against the OpenSSL "
+            "that pkg-config finds")
+    if len(names) != 4 or any(sum(bool(re.fullmatch(p, n)) for n in names) != 1 for p in patterns):
+        raise ValueError("expected exactly the adapter, libfido2, libcrypto and libcbor")
 
 
 def bundle(source: pathlib.Path, output: pathlib.Path) -> dict:
@@ -80,8 +93,7 @@ def bundle(source: pathlib.Path, output: pathlib.Path) -> dict:
             subprocess.run(["codesign", "--force", "--sign", "-", str(target)], check=True)
         else:
             subprocess.run(["patchelf", "--set-rpath", "$ORIGIN", str(target)], check=True)
-    if len(copied) != 4 or any(sum(bool(re.fullmatch(p, n)) for n in copied) != 1 for p in patterns):
-        raise ValueError("expected exactly the adapter, libfido2, libcrypto and libcbor")
+    check_closure(copied, patterns)
     for name in copied:
         for dep in dependencies(output / name, mac):
             if not is_system(dep, mac) and (dep.removeprefix("@loader_path/") not in copied or (mac and not dep.startswith("@loader_path/"))):

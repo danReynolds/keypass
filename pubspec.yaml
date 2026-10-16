@@ -1,6 +1,6 @@
 name: keypass
 description: Flutter-free Dart access to passkey-derived encryption secrets.
-version: 0.1.0-dev.2
+version: 0.1.0-dev.3
 repository: https://github.com/danReynolds/keypass
 issue_tracker: https://github.com/danReynolds/keypass/issues
 

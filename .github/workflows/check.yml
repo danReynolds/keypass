@@ -34,6 +34,8 @@ jobs:
       - run: dart analyze --fatal-infos
       - run: dart test
       - if: runner.os != 'Windows'
+        run: python3 tool/test_bundle.py
+      - if: runner.os != 'Windows'
         run: python3 tool/test_build_hooks.py
       - run: node --test test/browser/ceremony.test.mjs test/browser/failure.test.mjs test/browser/gesture.test.mjs test/browser/deadline.test.mjs
       - run: dart run example/keypass_example.dart
@@ -99,7 +101,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - run: brew install libfido2 openssl@3 cmake pkgconf
+      - run: brew install libfido2 cmake pkgconf
         env:
           HOMEBREW_NO_INSTALL_CLEANUP: '1'
       - run: cmake -S native/hardware -B build/hardware -DCMAKE_BUILD_TYPE=Debug

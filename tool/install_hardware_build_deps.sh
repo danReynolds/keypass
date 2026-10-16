@@ -2,7 +2,8 @@
 # CI/build hosts only. Does not modify the end user's machine at CLI runtime.
 set -euo pipefail
 if [[ "$(uname -s)" == Darwin ]]; then
-  brew install cmake pkg-config libfido2 openssl@3 python3
+  # Homebrew's libfido2 brings the OpenSSL it links; Keypass bundles that one.
+  brew install cmake pkg-config libfido2 python3
   exit
 fi
 sudo apt-get update
