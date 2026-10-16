@@ -58,4 +58,17 @@ int main() {
   id = start(s);
   assert(id);
   assert(result(id)["error"] == "invalidRequest");
+  // Base64url fields decode through OpenSSL before any device I/O: a canonical
+  // value passes validation and finds no device; a non-canonical one is refused.
+  auto registration = [](const std::string &hash) {
+    return "{\"operation\":\"register\",\"device\":\"" + std::string(64, '0') +
+           "\",\"namespace\":\"example.com\",\"clientDataHash\":\"" + hash +
+           "\",\"userId\":\"AAAA\",\"displayName\":\"Test\",\"label\":\"Test\"}";
+  };
+  id = start(registration(std::string(43, 'A')));
+  assert(id);
+  assert(result(id)["error"] == "deviceUnavailable");
+  id = start(registration(std::string(42, 'A') + "B"));
+  assert(id);
+  assert(result(id)["error"] == "invalidRequest");
 }

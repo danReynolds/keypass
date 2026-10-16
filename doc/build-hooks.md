@@ -14,9 +14,9 @@ dependencies; it does not compile them.
 
 The source-build hook requires a C++17 compiler, CMake >= 3.22, pkg-config,
 Python 3, libfido2 >= 1.16, OpenSSL 3 or 4, and libcbor development files.
-The adapter must link the same OpenSSL as libfido2: the build finds OpenSSL
-through pkg-config, so install a libfido2 built against that OpenSSL, as
-Homebrew's is. Linux also
+The adapter must link the same OpenSSL as libfido2. CMake finds OpenSSL,
+preferring pkg-config, so install a libfido2 built against that OpenSSL, as
+Homebrew's is; the bundler refuses two different libcrypto versions. Linux also
 needs patchelf and binutils. Maintainers/CI can prepare them with
 `bash tool/install_hardware_build_deps.sh`; this explicit setup script may use
 Homebrew or sudo/apt. The hook itself never installs system packages or uses sudo.

@@ -117,6 +117,8 @@ jobs:
       - run: cmake -S native/hardware -B build/hardware -DCMAKE_BUILD_TYPE=Debug
       - run: cmake --build build/hardware -j4
       - run: ctest --test-dir build/hardware --output-on-failure
+      - name: bundle carries OpenSSL 4
+        run: python3 hook/bundle.py build/hardware/libkeypass_hardware.dylib build/bundle | grep 'libcrypto\.4\.dylib'
 
   hardware-linux:
     runs-on: ubuntu-latest

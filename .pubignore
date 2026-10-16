@@ -21,3 +21,4 @@ firebase-debug*.log
 /.dockerignore
 /.gitattributes
 /pubspec.lock
+__pycache__/

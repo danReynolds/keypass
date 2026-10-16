@@ -42,7 +42,7 @@ def check_closure(names: set[str], patterns: tuple[str, ...]) -> None:
         raise ValueError(
             "the adapter and libfido2 link different OpenSSL libraries "
             f"({', '.join(cryptos)}); use a libfido2 built against the OpenSSL "
-            "that pkg-config finds")
+            "that CMake finds")
     if len(names) != 4 or any(sum(bool(re.fullmatch(p, n)) for n in names) != 1 for p in patterns):
         raise ValueError("expected exactly the adapter, libfido2, libcrypto and libcbor")
 
