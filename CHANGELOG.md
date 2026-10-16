@@ -1,5 +1,8 @@
-## Unreleased
+## 0.1.0-dev.3
 
+- Bundle desktop hardware adapters against OpenSSL 3 or 4. Homebrew's libfido2
+  now links OpenSSL 4, which the bundler refused. A bundle with two different
+  libcrypto versions is still refused, now with a message saying so.
 - Require saved authenticator state on every assertion. Remove the browser
   prototype's missing-state exception and SDK SPKI conversion helpers.
 - Use current system records in the browser probe, with one Dart verifier and

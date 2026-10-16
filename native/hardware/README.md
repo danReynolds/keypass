@@ -28,7 +28,7 @@ presence are still required by the enrolled credential's policy.
 
 ## Build and run
 
-Install libfido2 >=1.16 (tested with 1.17.0), OpenSSL 3, CMake, pkg-config and a C++17 compiler. On macOS, Homebrew provides these dependencies. Linux additionally needs libudev development headers when building libfido2. CMake downloads a checksum-pinned nlohmann/json header.
+Install libfido2 >=1.16 (tested with 1.17.0), OpenSSL 3 or 4 (the one libfido2 links), CMake, pkg-config and a C++17 compiler. On macOS, Homebrew provides these dependencies. Linux additionally needs libudev development headers when building libfido2. CMake downloads a checksum-pinned nlohmann/json header.
 
 ```sh
 cmake -S native/hardware -B build/hardware -DCMAKE_BUILD_TYPE=Debug

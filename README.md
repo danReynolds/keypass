@@ -7,7 +7,7 @@ recover the same 32-byte secret later. Keypass handles verification and native
 interaction; your app owns encryption, storage and recovery. No Keypass service
 or account is required.
 
-**Prerelease:** [0.1.0-dev.2](https://pub.dev/packages/keypass/versions/0.1.0-dev.2).
+**Prerelease:** [0.1.0-dev.3](https://pub.dev/packages/keypass/versions/0.1.0-dev.3).
 Provider/device coverage is limited; see [platform setup](doc/platforms.md).
 Source changes since publication are listed in the [changelog](CHANGELOG.md).
 
