@@ -1,6 +1,7 @@
 # External review guide
 
-Prepared October 11, 2026. This is a review handoff, not a completed security
+Prepared October 11, 2026; baselines updated for 0.1.0-dev.3 on October 18,
+2026. This is a review handoff, not a completed security
 audit or an expanded platform-support claim. Pin an exact commit and retain the
 resolved dependency manifests with the report.
 
@@ -8,16 +9,16 @@ resolved dependency manifests with the report.
 
 | Review target | Identity |
 | --- | --- |
-| Implementation baseline before this documentation update | [`d7d5316e66b0e6deebda74be1d62070a230af6c8`](https://github.com/danReynolds/keypass/tree/d7d5316e66b0e6deebda74be1d62070a230af6c8) |
-| Latest published prerelease checked October 11 | [0.1.0-dev.2](https://pub.dev/packages/keypass/versions/0.1.0-dev.2), published October 6 |
-| Pub archive SHA-256 | `9c46f2bb0413b4f891d5e7eddce46830d2fa4c5c83ebad08b14333efe051c1ec` |
-| Consuming Keybay source baseline | [`162b4778075a4f303524d508015a019864634aa5`](https://github.com/danReynolds/keybay/tree/162b4778075a4f303524d508015a019864634aa5) |
+| Implementation baseline | [`000988de96d736b5d8725de06426196b4a705582`](https://github.com/danReynolds/keypass/tree/000988de96d736b5d8725de06426196b4a705582), the published 0.1.0-dev.3 source |
+| Latest published prerelease checked October 18 | [0.1.0-dev.3](https://pub.dev/packages/keypass/versions/0.1.0-dev.3), published October 17 |
+| Pub archive SHA-256 | `e11a551ba04bd9311bd76276d00828502999221f9be4cc408eaf83782c76d77d` |
+| Consuming Keybay source baseline | [`1fb82cbfc08d14f4d046b6bde8e32801e1121357`](https://github.com/danReynolds/keybay/tree/1fb82cbfc08d14f4d046b6bde8e32801e1121357), Keybay 0.3.2 |
 
-The source includes [unreleased cleanup](../CHANGELOG.md#unreleased), including
-mandatory saved verifier state and removal of prototype/native-path exceptions.
-The published archive predates that cleanup. Its unchanged pubspec version is
-not proof of byte-identical contents. Keybay currently pins the published
-0.1.0-dev.2 package; it does not automatically consume this repository's main.
+Version 0.1.0-dev.3 ships the cleanup that followed 0.1.0-dev.2, including
+mandatory saved verifier state and removal of prototype/native-path exceptions,
+and bundles desktop adapters against OpenSSL 3 or 4. Keybay 0.3.2 exact-pins
+0.1.0-dev.3 and checks the archive's native build inputs against commit
+`000988d`; it does not automatically consume this repository's main.
 A joint test using a local override must record that as a separate configuration.
 
 Capture `git rev-parse HEAD`, `git status --short`, Dart/native toolchain versions,
