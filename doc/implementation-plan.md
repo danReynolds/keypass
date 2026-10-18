@@ -1,7 +1,7 @@
 # Implementation plan
 
-Keypass 0.1.0-dev.2 and Keybay 0.2.0 are published. Later source cleanup remains
-unreleased. [External review](external-review.md) identifies exact baselines;
+Keypass 0.1.0-dev.3 and Keybay 0.3.2 are published, and Keybay pins
+0.1.0-dev.3. [External review](external-review.md) identifies exact baselines;
 [validation](validation.md) holds dated device receipts.
 
 ## Accepted scope — 2026-09-29
@@ -110,8 +110,8 @@ identify artifacts and format compatibility.
 
 - [ ] Physical multi-key recovery/loss, auth-change interruption and lifecycle
   coverage. Installed CLI success does not complete that matrix.
-- [ ] Release Keypass source cleanup, then update Keybay's published dependency.
-  Keybay currently pins 0.1.0-dev.2, not this repository's main branch.
+- [x] Release Keypass source cleanup, then update Keybay's published dependency.
+  Keypass 0.1.0-dev.3 shipped it, and Keybay 0.3.2 pins that release.
 
 ## 5. Release qualification
 

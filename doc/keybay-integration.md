@@ -1,6 +1,6 @@
 # Keybay integration
 
-Keybay 0.2.0 consumes Keypass 0.1.0-dev.2. Applications use Keybay's credential
+Keybay 0.3.2 consumes Keypass 0.1.0-dev.3. Applications use Keybay's credential
 API; Keybay manages the Keypass client, records and temporary results internally.
 
 ## Consumer flow
